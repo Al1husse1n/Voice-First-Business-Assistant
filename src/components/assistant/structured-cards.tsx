@@ -64,9 +64,9 @@ export function InventoryCard({
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="assistant-card-badge badge-inventory">Inventory</span>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/50 border border-emerald-800/40 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-emerald-400">
+          <span className="badge-status-stock inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800/40 px-2.5 py-0.5 text-[0.6875rem] font-semibold tracking-wide">
             <span
-              className="w-1.5 h-1.5 rounded-full bg-emerald-400"
+              className="badge-status-stock-dot w-1.5 h-1.5 rounded-full bg-[#16A34A] dark:bg-emerald-400"
               aria-hidden="true"
             />
             {statusBadgeText}

@@ -27,6 +27,19 @@
   --positive: var(--success);
   --attention: var(--warning);
   --negative: var(--error);
+
+  /* Voice Orb Tokens (§13–§15) */
+  --orb-bg-gradient: radial-gradient(circle at 50% 50%, #222222 0%, #1a1a1c 65%, #141416 100%);
+  --orb-inner-bg: #222222;
+  --orb-inner-bg-active: #221710;
+  --orb-inner-border: rgba(254, 105, 4, 0.35);
+  --orb-ring: rgba(254, 105, 4, 0.4);
+
+  /* Inventory Status Pill Tokens (§20–§21) */
+  --badge-stock-bg: rgba(6, 78, 59, 0.45);
+  --badge-stock-border: rgba(16, 185, 129, 0.35);
+  --badge-stock-text: #34d399;
+  --badge-stock-dot: #34d399;
 }
 
 :root[data-theme="light"],
@@ -58,6 +71,19 @@ html.light {
   --positive: var(--success);
   --attention: var(--warning);
   --negative: var(--error);
+
+  /* Voice Orb Tokens (§13–§15) */
+  --orb-bg-gradient: radial-gradient(circle at 50% 50%, #ffffff 0%, #f7f7f8 65%, #eeeeef 100%);
+  --orb-inner-bg: #ffffff;
+  --orb-inner-bg-active: #ffffff;
+  --orb-inner-border: rgba(254, 105, 4, 0.35);
+  --orb-ring: rgba(254, 105, 4, 0.38);
+
+  /* Inventory Status Pill Tokens (§20–§21) */
+  --badge-stock-bg: #ecfdf5;
+  --badge-stock-border: #a7f3d0;
+  --badge-stock-text: #047857;
+  --badge-stock-dot: #16a34a;
 }
 
 @theme inline {
@@ -214,18 +240,18 @@ summary::-webkit-details-marker {
   0%, 100% {
     transform: scale(1);
     box-shadow: 
-      0 0 25px 2px rgba(254, 105, 4, 0.12),
-      0 0 50px 10px rgba(254, 105, 4, 0.05),
-      inset 0 0 20px rgba(254, 105, 4, 0.08);
-    border-color: rgba(254, 105, 4, 0.25);
+      0 0 26px 3px rgba(254, 105, 4, 0.20),
+      0 0 52px 12px rgba(254, 105, 4, 0.08),
+      inset 0 0 22px rgba(254, 105, 4, 0.10);
+    border-color: rgba(254, 105, 4, 0.38);
   }
   50% {
-    transform: scale(1.04);
+    transform: scale(1.035);
     box-shadow: 
-      0 0 38px 6px rgba(254, 105, 4, 0.22),
-      0 0 75px 18px rgba(254, 105, 4, 0.10),
-      inset 0 0 30px rgba(254, 105, 4, 0.16);
-    border-color: rgba(254, 105, 4, 0.45);
+      0 0 38px 6px rgba(254, 105, 4, 0.28),
+      0 0 76px 18px rgba(254, 105, 4, 0.14),
+      inset 0 0 32px rgba(254, 105, 4, 0.18);
+    border-color: rgba(254, 105, 4, 0.60);
   }
 }
 
@@ -280,6 +306,29 @@ summary::-webkit-details-marker {
   background-color: rgba(254, 105, 4, 0.12);
   color: #fe6904;
   border: 1px solid rgba(254, 105, 4, 0.3);
+}
+
+/* Inventory Status Pill (§20–§21) */
+.badge-status-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.15rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background-color: var(--badge-stock-bg);
+  border: 1px solid var(--badge-stock-border);
+  color: var(--badge-stock-text);
+  transition: all 0.2s ease;
+}
+
+.badge-status-stock-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background-color: var(--badge-stock-dot);
 }
 
 .card-amount {
