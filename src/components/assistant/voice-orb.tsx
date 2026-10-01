@@ -57,24 +57,25 @@ export function VoiceOrb({
         aria-label={active ? "Stop speaking" : "Tap to speak"}
         className="relative group focus:outline-none cursor-pointer rounded-full"
       >
-        {/* Soft Ambient Radial Glow */}
+        {/* Soft Ambient Radial Glow - Persistent warm orange aura (§13–§15) */}
         <div
           className={`absolute -inset-4 sm:-inset-6 rounded-full blur-2xl transition-opacity duration-700 pointer-events-none ${
             active
-              ? "bg-[#FE6904]/25 opacity-100"
-              : "bg-[#FE6904]/10 opacity-70 group-hover:opacity-90"
+              ? "bg-[#FE6904]/30 opacity-100"
+              : "bg-[#FE6904]/20 opacity-80 group-hover:opacity-100"
           }`}
           aria-hidden="true"
         />
 
         {/* Breathing Circle Container (§14 idle breathing circle, 4s cycle) */}
         <div
-          className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center transition-transform duration-500 orb-breathe-animation ${
-            active ? "border-[#FE6904]/60" : "border-border group-hover:border-[#FE6904]/30"
+          className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-full flex items-center justify-center transition-all duration-500 orb-breathe-animation ${
+            active
+              ? "border-[#FE6904] shadow-[0_0_30px_rgba(254,105,4,0.35)]"
+              : "border-[#FE6904]/40 group-hover:border-[#FE6904]/60"
           }`}
           style={{
-            background:
-              "radial-gradient(circle at 45% 45%, var(--surface-strong) 0%, var(--surface) 55%, var(--background) 100%)",
+            background: "var(--orb-bg-gradient)",
             borderWidth: "1.5px",
           }}
         >
@@ -88,9 +89,15 @@ export function VoiceOrb({
               <div
                 className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
                   active
-                    ? "bg-[#221710] border border-[#FE6904] shadow-[0_0_20px_rgba(254,105,4,0.35)]"
-                    : "bg-surface border border-border group-hover:border-[#FE6904]/40 shadow-[0_0_15px_rgba(0,0,0,0.15)] dark:shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+                    ? "bg-white dark:bg-[#221710] border border-[#FE6904] shadow-[0_0_20px_rgba(254,105,4,0.35)]"
+                    : "bg-white dark:bg-[#222222] border border-[#FE6904]/30 group-hover:border-[#FE6904]/50 shadow-[0_0_15px_rgba(0,0,0,0.06)] dark:shadow-[0_0_15px_rgba(0,0,0,0.5)]"
                 }`}
+                style={{
+                  backgroundColor: active
+                    ? "var(--orb-inner-bg-active)"
+                    : "var(--orb-inner-bg)",
+                  borderColor: active ? "var(--accent)" : "var(--orb-inner-border)",
+                }}
               >
                 {active ? (
                   /* Active audio indicator */
@@ -103,7 +110,7 @@ export function VoiceOrb({
                 ) : (
                   /* Idle microphone glyph */
                   <svg
-                    className="w-6 h-6 text-muted transition-colors duration-200 group-hover:text-[#FE6904]"
+                    className="w-6 h-6 text-muted dark:text-muted transition-colors duration-200 group-hover:text-[#FE6904]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
