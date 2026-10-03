@@ -106,7 +106,7 @@ Copy `.env.example` to `.env.local` and set the backend origin:
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-Voice is optional. Set `NEXT_PUBLIC_VOXIDE_PUBLIC_KEY` to a real Voxide publishable key to mount the widget. If that variable is missing, the widget stays off and the text assistant still works.
+Voice is optional. The widget mounts only when both of these are set: `NEXT_PUBLIC_VOXIDE_PUBLIC_KEY` is a real Voxide publishable key, and `NEXT_PUBLIC_VOXIDE_ENABLED=true`. If either is missing, the widget stays off and the text assistant still works. Do not put a placeholder key in application code.
 
 Do not hardcode the backend URL or a Voxide key in application code. Restart `npm run dev` after changing environment variables.
 

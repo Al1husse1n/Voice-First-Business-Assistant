@@ -3,13 +3,9 @@
 import React, { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import { VoiceOrb } from "./voice-orb";
-import {
-  SaleExpenseCard,
-  InventoryCard,
-  ClarificationCard,
-} from "./structured-cards";
-import { healthCheck, createEvent } from "@/lib/api/client";
-import type { EventType } from "@/lib/api/types";
+import { SaleExpenseCard, ClarificationCard } from "./structured-cards";
+import { createEvent, healthCheck, queryBusiness } from "@/lib/api/client";
+import type { CreateEventRequest, EventType } from "@/lib/api/types";
 import { DEFAULT_LANGUAGE, MVP_BUSINESS_ID } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -30,11 +26,13 @@ export type FeedItem =
     }
   | {
       id: string;
-      kind: "assistant-inventory";
-      countText: string;
-      statusBadgeText: string;
-      subtitle?: string;
+      kind: "assistant-note";
+      badge: string;
+      tone: "answer" | "error";
+      text: string;
       timestamp: string;
+      queryType?: string;
+      result?: unknown;
     }
   | {
       id: string;
@@ -44,61 +42,73 @@ export type FeedItem =
       timestamp: string;
     };
 
-const INITIAL_FEED_ITEMS: FeedItem[] = [
-  // 1. Initial Dummy Sale Card (§20–§21)
-  {
-    id: "initial-sale",
-    kind: "assistant-sale-expense",
-    type: "sale",
-    headline: "3 shirts · ETB 900",
-    subtitle: "Recorded to today's sales balance",
-    timestamp: "Today at 12:42 PM",
-  },
-  // 2. Initial Dummy Inventory Query Card (§20–§21)
-  {
-    id: "initial-inventory",
-    kind: "assistant-inventory",
-    countText: "17 shirts remaining",
-    statusBadgeText: "In Stock",
-    subtitle: "Current inventory level",
-    timestamp: "Live count",
-  },
-  // 3. Initial Dummy Clarification Card (§23–§24)
-  {
-    id: "initial-clarification",
-    kind: "assistant-clarification",
-    question: "Did you mean 900 birr in cash or transfer?",
-    options: ["Cash", "Transfer"],
-    timestamp: "Needs input",
-  },
-];
-
 const SUGGESTIONS = [
-  "Sold 2 jackets for 1200 birr",
-  "Expense: 400 birr for transport",
-  "Check stock for shirts",
+  "How much did I sell today?",
+  "How much did I spend this week?",
+  "How many shirts do I have?",
+  "Who owes me money?",
 ] as const;
 
+const INPUT_CLASS =
+  "w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent";
+
+type PendingEvent = {
+  request: CreateEventRequest;
+  summary: string;
+  headline: string;
+  card: "sale" | "expense" | "note";
+};
+
+function nextId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function positiveNumber(value: string, label: string): number | string {
+  const parsed = Number(value);
+  if (!value.trim() || !Number.isFinite(parsed) || parsed <= 0) {
+    return `${label} must be greater than zero.`;
+  }
+  return parsed;
+}
+
+function withSelectedDate(
+  data: Record<string, string | number | null>,
+  date: string,
+) {
+  const selected = date.trim();
+  if (selected) {
+    data.date = selected;
+  }
+  return data;
+}
+
 export function AssistantWorkspace() {
-  const [feedItems, setFeedItems] = useState<FeedItem[]>(INITIAL_FEED_ITEMS);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [inputText, setInputText] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [querying, setQuerying] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState<"ok" | "checking" | "offline">("checking");
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pendingEvent, setPendingEvent] = useState<PendingEvent | null>(null);
 
-  // Manual event fields
   const [manualEventType, setManualEventType] = useState<EventType>("sale");
   const [manualItem, setManualItem] = useState("");
   const [manualQuantity, setManualQuantity] = useState("");
   const [manualAmount, setManualAmount] = useState("");
   const [manualCustomer, setManualCustomer] = useState("");
+  const [manualSupplier, setManualSupplier] = useState("");
   const [manualDescription, setManualDescription] = useState("");
+  const [manualCategory, setManualCategory] = useState("");
+  const [manualReason, setManualReason] = useState("");
+  const [manualDirection, setManualDirection] = useState("owed_to_business");
+  const [manualDate, setManualDate] = useState("");
 
   const feedRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const busyRef = useRef(false);
 
-  // Health check on mount
   useEffect(() => {
     let active = true;
     healthCheck()
@@ -114,7 +124,6 @@ export function AssistantWorkspace() {
     };
   }, []);
 
-  // Smoothly scroll feed when items change
   const scrollToBottom = () => {
     if (feedRef.current) {
       feedRef.current.scrollTo({
@@ -126,9 +135,8 @@ export function AssistantWorkspace() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [feedItems]);
+  }, [feedItems, querying]);
 
-  // Synchronize native input changes for programmatic or vanilla JS events
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -141,43 +149,75 @@ export function AssistantWorkspace() {
     };
   }, []);
 
-  // Click suggestion pill: inserts string into text input and focuses it (§19 & requirement 4)
-  const handleSelectSuggestion = (pillText: string) => {
-    setInputText(pillText);
-    if (inputRef.current) {
-      inputRef.current.value = pillText;
-      inputRef.current.focus();
-    }
-  };
+  function pushFeed(item: FeedItem) {
+    setFeedItems((prev) => [...prev, item]);
+  }
 
-  // Form submit handler
-  const handleChatSubmit = (e?: FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
-    const rawVal = inputRef.current ? inputRef.current.value : inputText;
-    const trimmed = (rawVal || inputText).trim();
-    if (!trimmed) return;
-
-    // 1. Append user message bubble to #assistant-feed
-    const userBubble: FeedItem = {
-      id: "user-" + Date.now(),
+  async function submitQuery(raw: string) {
+    const trimmed = raw.trim();
+    if (!trimmed || busyRef.current) return;
+    busyRef.current = true;
+    setQuerying(true);
+    pushFeed({
+      id: nextId("user"),
       kind: "user",
       text: trimmed,
       timestamp: "Just now",
-    };
-
-    setFeedItems((prev) => [...prev, userBubble]);
+    });
     setInputText("");
     if (inputRef.current) {
       inputRef.current.value = "";
     }
 
-    // 2. Smoothly scroll to newest message
-    setTimeout(scrollToBottom, 50);
+    try {
+      const result = await queryBusiness({
+        business_id: MVP_BUSINESS_ID,
+        language: DEFAULT_LANGUAGE,
+        query: trimmed,
+      });
+      if (!result.ok) {
+        if (result.kind === "clarification") {
+          pushFeed({
+            id: nextId("clarification"),
+            kind: "assistant-clarification",
+            question: result.message,
+            options: result.missing_fields ?? [],
+            timestamp: "Needs input",
+          });
+        } else {
+          pushFeed({
+            id: nextId("error"),
+            kind: "assistant-note",
+            badge: "Could not complete",
+            tone: "error",
+            text: result.message,
+            timestamp: "Just now",
+          });
+        }
+        return;
+      }
+      pushFeed({
+        id: nextId("answer"),
+        kind: "assistant-note",
+        badge: "Answer",
+        tone: "answer",
+        text: result.data.message,
+        timestamp: "Just now",
+        queryType: result.data.query_type,
+        result: result.data.result,
+      });
+    } finally {
+      busyRef.current = false;
+      setQuerying(false);
+    }
+  }
+
+  const handleChatSubmit = (e?: FormEvent) => {
+    if (e) e.preventDefault();
+    const rawVal = inputRef.current ? inputRef.current.value : inputText;
+    void submitQuery(rawVal || inputText);
   };
 
-  // Click on clarification option
   const handleClarificationOption = (option: string) => {
     setInputText(option);
     if (inputRef.current) {
@@ -186,70 +226,216 @@ export function AssistantWorkspace() {
     }
   };
 
-  // Manual event recording submit
-  const handleManualRecordSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setManualSubmitting(true);
-    try {
-      const parsedAmount = Number(manualAmount) || 0;
-      const parsedQty = Number(manualQuantity) || 1;
+  function buildManualEvent(): PendingEvent | { error: string } {
+    const data: Record<string, string | number | null> = {};
+    withSelectedDate(data, manualDate);
 
-      const res = await createEvent({
+    if (manualEventType === "sale" || manualEventType === "purchase") {
+      const item = manualItem.trim();
+      if (!item) return { error: "Enter the item name." };
+      const quantity = positiveNumber(manualQuantity, "Quantity");
+      if (typeof quantity === "string") return { error: quantity };
+      const amount = positiveNumber(manualAmount, "Amount");
+      if (typeof amount === "string") return { error: amount };
+      data.item = item;
+      data.quantity = quantity;
+      data.amount = amount;
+      data.currency = "ETB";
+      if (manualEventType === "sale") {
+        const customer = manualCustomer.trim();
+        if (customer) data.customer = customer;
+        return {
+          request: {
+            business_id: MVP_BUSINESS_ID,
+            language: DEFAULT_LANGUAGE,
+            event_type: "sale",
+            data,
+          },
+          summary: `Sale: ${quantity} ${item} · ETB ${amount}`,
+          headline: `${quantity} ${item} · ETB ${amount}`,
+          card: "sale",
+        };
+      }
+      const supplier = manualSupplier.trim();
+      if (supplier) data.supplier = supplier;
+      return {
+        request: {
+          business_id: MVP_BUSINESS_ID,
+          language: DEFAULT_LANGUAGE,
+          event_type: "purchase",
+          data,
+        },
+        summary: `Purchase: ${quantity} ${item} · ETB ${amount}`,
+        headline: `${quantity} ${item} · ETB ${amount}`,
+        card: "note",
+      };
+    }
+
+    if (manualEventType === "expense") {
+      const description = manualDescription.trim();
+      if (!description) return { error: "Enter an expense description." };
+      const amount = positiveNumber(manualAmount, "Amount");
+      if (typeof amount === "string") return { error: amount };
+      data.description = description;
+      data.amount = amount;
+      data.currency = "ETB";
+      const category = manualCategory.trim();
+      if (category) data.category = category;
+      return {
+        request: {
+          business_id: MVP_BUSINESS_ID,
+          language: DEFAULT_LANGUAGE,
+          event_type: "expense",
+          data,
+        },
+        summary: `Expense: ${description} · ETB ${amount}`,
+        headline: `${description} · ETB ${amount}`,
+        card: "expense",
+      };
+    }
+
+    if (manualEventType === "inventory_adjustment") {
+      const item = manualItem.trim();
+      if (!item) return { error: "Enter the item name." };
+      const reason = manualReason.trim();
+      if (!reason) return { error: "Enter a reason for the adjustment." };
+      const quantity = Number(manualQuantity);
+      if (!manualQuantity.trim() || !Number.isFinite(quantity) || quantity === 0) {
+        return {
+          error:
+            "Quantity must be a non-zero number. Use a negative number to decrease stock.",
+        };
+      }
+      data.item = item;
+      data.quantity = quantity;
+      data.reason = reason;
+      return {
+        request: {
+          business_id: MVP_BUSINESS_ID,
+          language: DEFAULT_LANGUAGE,
+          event_type: "inventory_adjustment",
+          data,
+        },
+        summary: `Inventory adjustment: ${quantity} ${item} · ${reason}`,
+        headline: `${quantity} ${item}`,
+        card: "note",
+      };
+    }
+
+    const customer = manualCustomer.trim();
+    if (!customer) return { error: "Enter the customer's name." };
+    const amount = positiveNumber(manualAmount, "Amount");
+    if (typeof amount === "string") return { error: amount };
+    if (
+      manualDirection !== "owed_to_business" &&
+      manualDirection !== "owed_by_business"
+    ) {
+      return {
+        error:
+          "Choose whether the customer owes the business or the business owes the customer.",
+      };
+    }
+    data.customer = customer;
+    data.amount = amount;
+    data.currency = "ETB";
+    data.direction = manualDirection;
+    return {
+      request: {
         business_id: MVP_BUSINESS_ID,
         language: DEFAULT_LANGUAGE,
-        event_type: manualEventType,
-        data: {
-          item: manualItem || "Item",
-          quantity: parsedQty,
-          amount: parsedAmount,
-          currency: "ETB",
-          customer: manualCustomer || null,
-          description: manualDescription || manualItem || "Manual record",
-          date: new Date().toISOString().slice(0, 10),
-        },
-      });
+        event_type: "customer_debt",
+        data,
+      },
+      summary: `Customer debt: ${customer} · ETB ${amount} · ${manualDirection}`,
+      headline: `${customer} · ETB ${amount}`,
+      card: "note",
+    };
+  }
 
-      if (res.ok) {
-        setFeedItems((prev) => [
-          ...prev,
-          {
-            id: "manual-" + Date.now(),
-            kind: "assistant-sale-expense",
-            type: manualEventType === "expense" ? "expense" : "sale",
-            headline: `${parsedQty} ${manualItem || "items"} · ETB ${parsedAmount.toLocaleString()}`,
-            subtitle: "Manually recorded via form",
-            timestamp: "Just now",
-          },
-        ]);
-        setIsManualModalOpen(false);
-        setManualItem("");
-        setManualQuantity("");
-        setManualAmount("");
+  function handleReview(event: FormEvent) {
+    event.preventDefault();
+    const built = buildManualEvent();
+    if ("error" in built) {
+      setFormError(built.error);
+      setPendingEvent(null);
+      return;
+    }
+    setFormError(null);
+    setPendingEvent(built);
+  }
+
+  async function confirmManualEvent() {
+    if (!pendingEvent || busyRef.current) return;
+    busyRef.current = true;
+    setManualSubmitting(true);
+    setFormError(null);
+    try {
+      const result = await createEvent(pendingEvent.request);
+      if (!result.ok) {
+        setFormError(result.message);
+        if (result.kind === "clarification") {
+          pushFeed({
+            id: nextId("clarification"),
+            kind: "assistant-clarification",
+            question: result.message,
+            options: result.missing_fields ?? [],
+            timestamp: "Needs input",
+          });
+        }
+        return;
       }
-    } catch {
-      // Fallback local update if backend offline
-      setFeedItems((prev) => [
-        ...prev,
-        {
-          id: "manual-offline-" + Date.now(),
-          kind: "assistant-sale-expense",
-          type: manualEventType === "expense" ? "expense" : "sale",
-          headline: `${manualQuantity || "1"} ${manualItem || "items"} · ETB ${manualAmount || "0"}`,
-          subtitle: "Recorded locally",
+
+      if (pendingEvent.card === "note") {
+        pushFeed({
+          id: nextId("event"),
+          kind: "assistant-note",
+          badge: "Recorded",
+          tone: "answer",
+          text: result.data.message,
           timestamp: "Just now",
-        },
-      ]);
+        });
+      } else {
+        pushFeed({
+          id: nextId("event"),
+          kind: "assistant-sale-expense",
+          type: pendingEvent.card,
+          headline: pendingEvent.headline,
+          subtitle: result.data.message,
+          timestamp: "Just now",
+        });
+      }
+      setPendingEvent(null);
       setIsManualModalOpen(false);
+      setManualItem("");
+      setManualQuantity("");
+      setManualAmount("");
+      setManualCustomer("");
+      setManualSupplier("");
+      setManualDescription("");
+      setManualCategory("");
+      setManualReason("");
+      setManualDirection("owed_to_business");
+      setManualDate("");
+    } catch {
+      setFormError("Unable to connect to the business service. Please try again.");
     } finally {
+      busyRef.current = false;
       setManualSubmitting(false);
     }
-  };
+  }
+
+  function closeManual() {
+    if (manualSubmitting) return;
+    setIsManualModalOpen(false);
+    setPendingEvent(null);
+    setFormError(null);
+  }
 
   const hasInputText = inputText.trim().length > 0;
+  const busy = querying || manualSubmitting;
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-background text-foreground transition-colors duration-200 selection:bg-accent/30">
-      {/* 1. Header: Minimal bar with back link/branding & connection status (§29 & requirement 2) */}
       <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/90 backdrop-blur-md transition-colors duration-200">
         <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -274,7 +460,6 @@ export function AssistantWorkspace() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Small connection status indicator */}
             <div
               className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted"
               title={`Status: ${backendStatus}`}
@@ -285,7 +470,7 @@ export function AssistantWorkspace() {
                     ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse"
                     : backendStatus === "checking"
                     ? "bg-amber-400 animate-pulse"
-                    : "bg-emerald-400/80"
+                    : "bg-foreground/30"
                 }`}
               />
               <span className="font-inter text-[11px] sm:text-xs">
@@ -293,11 +478,10 @@ export function AssistantWorkspace() {
                   ? "Connected"
                   : backendStatus === "checking"
                   ? "Checking…"
-                  : "Voice Ready"}
+                  : "Unavailable"}
               </span>
             </div>
 
-            {/* Secondary Action: Record manually (§18, §22, §29) */}
             <button
               type="button"
               onClick={() => setIsManualModalOpen(true)}
@@ -314,30 +498,35 @@ export function AssistantWorkspace() {
         </div>
       </header>
 
-      {/* Main Layout Area Following §29 Mobile Priority Order:
-          1. Branding (in header)
-          2. Voice orb (#voice-orb-container)
-          3. Current state / Sublabel
-          4. Conversation / result feed (#assistant-feed)
-          5. Try asking (#suggestion-pills)
-          6. Text input (#chat-form)
-          7. Manual recording (secondary) */}
       <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto overflow-hidden">
-        {/* 2. Voice Orb Container (#voice-orb-container) - Centered visual anchor (§13–§15, §18) */}
         <div className="shrink-0 border-b border-border/50 bg-background transition-colors duration-200">
           <VoiceOrb
-            isListening={isListening}
-            onToggle={() => setIsListening((prev) => !prev)}
-            sublabel="Tap to speak or type below"
+            isListening={isListening || busy}
+            onToggle={() => {
+              if (busy) return;
+              setIsListening((prev) => !prev);
+            }}
+            sublabel={
+              querying
+                ? "Checking your business…"
+                : manualSubmitting
+                  ? "Sending this record…"
+                  : "Tap to speak or type below"
+            }
           />
         </div>
 
-        {/* 3. Conversation Feed (#assistant-feed) - Scrollable middle area (§20–§21) */}
         <div
           id="assistant-feed"
           ref={feedRef}
           className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 custom-scrollbar"
+          aria-live="polite"
         >
+          {feedItems.length === 0 && !querying && (
+            <p className="py-8 text-center text-sm font-inter text-muted">
+              Ask a question about your business.
+            </p>
+          )}
           {feedItems.map((item) => {
             if (item.kind === "user") {
               return (
@@ -365,18 +554,27 @@ export function AssistantWorkspace() {
               );
             }
 
-            if (item.kind === "assistant-inventory") {
+            if (item.kind === "assistant-note") {
               return (
                 <div
                   key={item.id}
                   className="flex flex-col gap-2 max-w-[95%] sm:max-w-[85%] animate-enter-up"
                 >
-                  <InventoryCard
-                    countText={item.countText}
-                    statusBadgeText={item.statusBadgeText}
-                    subtitle={item.subtitle}
-                    timestamp={item.timestamp}
-                  />
+                  <div className="assistant-card w-full">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span
+                        className={`assistant-card-badge ${
+                          item.tone === "error" ? "badge-clarification" : "badge-inventory"
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                      <span className="card-timestamp">{item.timestamp}</span>
+                    </div>
+                    <p className="text-sm sm:text-base text-foreground font-inter leading-relaxed">
+                      {item.text}
+                    </p>
+                  </div>
                 </div>
               );
             }
@@ -399,11 +597,17 @@ export function AssistantWorkspace() {
 
             return null;
           })}
+          {querying && (
+            <div className="flex flex-col gap-2 max-w-[95%] sm:max-w-[85%] animate-enter-up">
+              <div className="assistant-card w-full" role="status">
+                <span className="assistant-card-badge badge-inventory">Checking</span>
+                <p className="mt-2 text-sm font-inter text-muted">Checking your business…</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 4. Bottom Dock: Sticky bottom wrapper (§18–§19, §29) */}
         <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-md px-3 sm:px-6 pt-2 pb-3 sm:pb-4 space-y-2.5 transition-colors duration-200">
-          {/* a) "Try asking" row (#suggestion-pills): Horizontal scrolling container with pills (§19) */}
           <div
             id="suggestion-pills"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"
@@ -416,15 +620,15 @@ export function AssistantWorkspace() {
               <button
                 key={pill}
                 type="button"
-                onClick={() => handleSelectSuggestion(pill)}
-                className="whitespace-nowrap rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-muted hover:text-foreground hover:border-accent/50 hover:bg-surface-strong transition-all shrink-0 cursor-pointer font-inter focus:outline-none focus:ring-1 focus:ring-accent"
+                onClick={() => void submitQuery(pill)}
+                disabled={busy}
+                className="whitespace-nowrap rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-muted hover:text-foreground hover:border-accent/50 hover:bg-surface-strong transition-all shrink-0 cursor-pointer font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {pill}
               </button>
             ))}
           </div>
 
-          {/* b) Text Input Form (#chat-form): Rounded pill container (§18, §29) */}
           <form
             id="chat-form"
             onSubmit={handleChatSubmit}
@@ -440,8 +644,9 @@ export function AssistantWorkspace() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Record transaction or ask a question..."
-              className="flex-1 bg-transparent text-sm sm:text-base text-foreground placeholder-faint font-inter"
+              placeholder="Ask a question about your business..."
+              disabled={busy}
+              className="flex-1 bg-transparent text-sm sm:text-base text-foreground placeholder-faint font-inter disabled:opacity-60"
               style={{
                 border: "none",
                 outline: "none",
@@ -451,14 +656,13 @@ export function AssistantWorkspace() {
               autoComplete="off"
             />
 
-            {/* Send button that activates to #FE6904 when input has text */}
             <button
               id="send-button"
               type="submit"
-              disabled={!hasInputText}
-              aria-label="Send message"
+              disabled={!hasInputText || busy}
+              aria-label={querying ? "Checking your business" : "Send message"}
               className={`flex shrink-0 items-center justify-center rounded-full w-9 h-9 sm:w-10 sm:h-10 transition-all duration-200 ${
-                hasInputText
+                hasInputText && !busy
                   ? "bg-accent text-white shadow-[0_0_14px_rgba(254,105,4,0.45)] hover:opacity-90 cursor-pointer active:scale-95"
                   : "bg-surface-strong text-faint cursor-not-allowed"
               }`}
@@ -479,7 +683,6 @@ export function AssistantWorkspace() {
             </button>
           </form>
 
-          {/* Mobile secondary trigger for manual recording (§29) */}
           <div className="flex sm:hidden justify-center pt-0.5">
             <button
               type="button"
@@ -492,26 +695,26 @@ export function AssistantWorkspace() {
         </div>
       </div>
 
-      {/* Step-by-Step Manual Recording Modal (§22: secondary to voice) */}
       {isManualModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="manual-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-enter-up"
         >
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-accent">
                   Manual Recording
                 </span>
-                <h3 className="font-space text-lg font-bold text-foreground mt-0.5">
+                <h3 id="manual-title" className="font-space text-lg font-bold text-foreground mt-0.5">
                   Record what happened
                 </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setIsManualModalOpen(false)}
+                onClick={closeManual}
                 className="rounded-full p-1.5 text-muted hover:text-foreground hover:bg-surface-strong transition-colors"
                 aria-label="Close modal"
               >
@@ -521,27 +724,100 @@ export function AssistantWorkspace() {
               </button>
             </div>
 
-            <form onSubmit={handleManualRecordSubmit} className="space-y-4 font-inter text-sm">
-              <div>
-                <label className="block text-xs text-muted mb-1.5" htmlFor="manual-event-type">
-                  Event type
-                </label>
-                <select
-                  id="manual-event-type"
-                  value={manualEventType}
-                  onChange={(e) => setManualEventType(e.target.value as EventType)}
-                  className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
-                >
-                  <option value="sale">Sale</option>
-                  <option value="expense">Expense</option>
-                  <option value="purchase">Purchase</option>
-                  <option value="inventory_adjustment">Inventory adjustment</option>
-                  <option value="customer_debt">Customer debt</option>
-                </select>
+            {pendingEvent ? (
+              <div className="space-y-4 font-inter text-sm">
+                <p className="text-sm text-muted">
+                  Review this event before it is sent to the business service.
+                </p>
+                <div className="rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground">
+                  {pendingEvent.summary}
+                  {manualDate ? (
+                    <span className="mt-1 block text-xs text-muted">Date: {manualDate}</span>
+                  ) : null}
+                </div>
+                {formError ? (
+                  <p className="rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-sm text-foreground" role="alert">
+                    {formError}
+                  </p>
+                ) : null}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingEvent(null);
+                      setFormError(null);
+                    }}
+                    disabled={manualSubmitting}
+                    className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmManualEvent()}
+                    disabled={manualSubmitting}
+                    className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+                  >
+                    {manualSubmitting ? "Recording…" : "Confirm Record"}
+                  </button>
+                </div>
               </div>
+            ) : (
+              <form onSubmit={handleReview} className="space-y-4 font-inter text-sm">
+                <div>
+                  <label className="block text-xs text-muted mb-1.5" htmlFor="manual-event-type">
+                    Event type
+                  </label>
+                  <select
+                    id="manual-event-type"
+                    value={manualEventType}
+                    onChange={(e) => {
+                      setManualEventType(e.target.value as EventType);
+                      setFormError(null);
+                    }}
+                    className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
+                  >
+                    <option value="sale">Sale</option>
+                    <option value="expense">Expense</option>
+                    <option value="purchase">Purchase</option>
+                    <option value="inventory_adjustment">Inventory adjustment</option>
+                    <option value="customer_debt">Customer debt</option>
+                  </select>
+                </div>
 
-              {manualEventType !== "expense" ? (
-                <>
+                {manualEventType === "expense" ? (
+                  <>
+                    <div>
+                      <label className="block text-xs text-muted mb-1.5" htmlFor="manual-desc">
+                        Description
+                      </label>
+                      <input
+                        id="manual-desc"
+                        type="text"
+                        value={manualDescription}
+                        onChange={(e) => setManualDescription(e.target.value)}
+                        placeholder="e.g. Transport, electricity"
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted mb-1.5" htmlFor="manual-category">
+                        Category (optional)
+                      </label>
+                      <input
+                        id="manual-category"
+                        type="text"
+                        value={manualCategory}
+                        onChange={(e) => setManualCategory(e.target.value)}
+                        className={INPUT_CLASS}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {manualEventType === "sale" ||
+                manualEventType === "purchase" ||
+                manualEventType === "inventory_adjustment" ? (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-muted mb-1.5" htmlFor="manual-item">
@@ -553,8 +829,7 @@ export function AssistantWorkspace() {
                         value={manualItem}
                         onChange={(e) => setManualItem(e.target.value)}
                         placeholder="e.g. Shirts"
-                        required
-                        className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent"
+                        className={INPUT_CLASS}
                       />
                     </div>
                     <div>
@@ -564,16 +839,16 @@ export function AssistantWorkspace() {
                       <input
                         id="manual-quantity"
                         type="number"
-                        min="1"
                         value={manualQuantity}
                         onChange={(e) => setManualQuantity(e.target.value)}
-                        placeholder="e.g. 3"
-                        required
-                        className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent"
+                        placeholder={manualEventType === "inventory_adjustment" ? "e.g. -2" : "e.g. 3"}
+                        className={INPUT_CLASS}
                       />
                     </div>
                   </div>
+                ) : null}
 
+                {manualEventType !== "inventory_adjustment" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-amount">
                       Amount (ETB)
@@ -581,18 +856,18 @@ export function AssistantWorkspace() {
                     <input
                       id="manual-amount"
                       type="number"
-                      min="1"
                       value={manualAmount}
                       onChange={(e) => setManualAmount(e.target.value)}
                       placeholder="e.g. 900"
-                      required
-                      className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent"
+                      className={INPUT_CLASS}
                     />
                   </div>
+                ) : null}
 
+                {manualEventType === "sale" || manualEventType === "customer_debt" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-customer">
-                      Customer (optional)
+                      {manualEventType === "sale" ? "Customer (optional)" : "Customer"}
                     </label>
                     <input
                       id="manual-customer"
@@ -600,61 +875,95 @@ export function AssistantWorkspace() {
                       value={manualCustomer}
                       onChange={(e) => setManualCustomer(e.target.value)}
                       placeholder="e.g. Hana"
-                      className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent"
+                      className={INPUT_CLASS}
                     />
                   </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5" htmlFor="manual-desc">
-                      Description
-                    </label>
-                    <input
-                      id="manual-desc"
-                      type="text"
-                      value={manualDescription}
-                      onChange={(e) => setManualDescription(e.target.value)}
-                      placeholder="e.g. Transport, electricity"
-                      required
-                      className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted mb-1.5" htmlFor="manual-amount">
-                      Amount (ETB)
-                    </label>
-                    <input
-                      id="manual-amount"
-                      type="number"
-                      min="1"
-                      value={manualAmount}
-                      onChange={(e) => setManualAmount(e.target.value)}
-                      placeholder="e.g. 400"
-                      required
-                      className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent"
-                    />
-                  </div>
-                </>
-              )}
+                ) : null}
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsManualModalOpen(false)}
-                  className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={manualSubmitting}
-                  className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors"
-                >
-                  {manualSubmitting ? "Recording…" : "Confirm Record"}
-                </button>
-              </div>
-            </form>
+                {manualEventType === "purchase" ? (
+                  <div>
+                    <label className="block text-xs text-muted mb-1.5" htmlFor="manual-supplier">
+                      Supplier (optional)
+                    </label>
+                    <input
+                      id="manual-supplier"
+                      type="text"
+                      value={manualSupplier}
+                      onChange={(e) => setManualSupplier(e.target.value)}
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                ) : null}
+
+                {manualEventType === "inventory_adjustment" ? (
+                  <div>
+                    <label className="block text-xs text-muted mb-1.5" htmlFor="manual-reason">
+                      Reason
+                    </label>
+                    <input
+                      id="manual-reason"
+                      type="text"
+                      value={manualReason}
+                      onChange={(e) => setManualReason(e.target.value)}
+                      placeholder="e.g. damaged"
+                      className={INPUT_CLASS}
+                    />
+                  </div>
+                ) : null}
+
+                {manualEventType === "customer_debt" ? (
+                  <div>
+                    <label className="block text-xs text-muted mb-1.5" htmlFor="manual-direction">
+                      Debt direction
+                    </label>
+                    <select
+                      id="manual-direction"
+                      value={manualDirection}
+                      onChange={(e) => setManualDirection(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
+                    >
+                      <option value="owed_to_business">Customer owes the business</option>
+                      <option value="owed_by_business">Business owes the customer</option>
+                    </select>
+                  </div>
+                ) : null}
+
+                <div>
+                  <label className="block text-xs text-muted mb-1.5" htmlFor="manual-date">
+                    Date (optional)
+                  </label>
+                  <input
+                    id="manual-date"
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className={INPUT_CLASS}
+                  />
+                </div>
+
+                {formError ? (
+                  <p className="rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-sm text-foreground" role="alert">
+                    {formError}
+                  </p>
+                ) : null}
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={closeManual}
+                    className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors"
+                  >
+                    Review
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
