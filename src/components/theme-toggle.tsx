@@ -11,8 +11,13 @@ function getSystemTheme(): Theme {
     : "dark";
 }
 
-export function ThemeToggle() {
+interface ThemeToggleProps {
+  className?: string;
+}
+
+export function ThemeToggle({ className = "" }: ThemeToggleProps) {
   const [theme, setTheme] = useState<Theme>("dark");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const saved = (window.localStorage.getItem("theme") ||
@@ -24,7 +29,10 @@ export function ThemeToggle() {
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(initial);
 
-    window.requestAnimationFrame(() => setTheme(initial));
+    window.requestAnimationFrame(() => {
+      setTheme(initial);
+      setMounted(true);
+    });
   }, []);
 
   function toggleTheme() {
@@ -38,16 +46,25 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
+  const isLight = mounted ? theme === "light" : false;
+  const label = isLight ? "Switch to dark mode" : "Switch to light mode";
+
   return (
     <button
       id="theme-toggle"
       type="button"
       onClick={toggleTheme}
-      className="inline-flex size-9 sm:size-10 items-center justify-center rounded-full border border-border bg-surface text-muted transition-colors hover:border-accent hover:text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-accent"
-      aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-      title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+      className={`relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors duration-200 hover:border-border-strong cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`}
+      aria-label={label}
+      title={label}
     >
-      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+      <span
+        className={`inline-flex items-center justify-center transition-all duration-200 transform ${
+          isLight ? "rotate-90 scale-95 opacity-100" : "rotate-0 scale-100 opacity-100"
+        }`}
+      >
+        {isLight ? <MoonIcon /> : <SunIcon />}
+      </span>
     </button>
   );
 }
