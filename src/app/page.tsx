@@ -1,313 +1,50 @@
-import Link from "next/link";
-import { ProductPreview } from "@/components/landing/product-preview";
-import { ThemeToggle } from "@/components/theme-toggle";
+import type { Metadata } from "next";
+import { Navbar } from "@/components/landing/navbar";
+import { HeroSection } from "@/components/landing/hero-section";
+import { ProblemSection } from "@/components/landing/problem-section";
+import { HowItWorksSection } from "@/components/landing/how-it-works-section";
+import { CapabilitiesSection } from "@/components/landing/capabilities-section";
+import { ProductVisualization } from "@/components/landing/product-visualization";
+import { VoiceTextSection } from "@/components/landing/voice-text-section";
+import { CtaSection } from "@/components/landing/cta-section";
+import { Footer } from "@/components/landing/footer";
 
-const navLinks = [
-  { href: "#product", label: "Product" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#demo", label: "Demo" },
-  { href: "/assistant", label: "Assistant" },
-] as const;
-
-const steps = [
-  {
-    title: "Speak",
-    body: "Tell the assistant what happened — a sale, an expense, a restock, or a customer debt.",
-  },
-  {
-    title: "Record",
-    body: "Your words become structured business activity, not a transcript sitting in a chat.",
-  },
-  {
-    title: "Understand",
-    body: "See sales, expenses, inventory, and outstanding payments in one place.",
-  },
-  {
-    title: "Decide",
-    body: "Ask questions about your business and get answers based on your recorded data.",
-  },
-] as const;
-
-const capabilities = [
-  {
-    title: "Capture business activity",
-    body: "Record sales, expenses, purchases, inventory changes, and customer debts by voice.",
-  },
-  {
-    title: "See what is happening",
-    body: "Get a simple view of your business activity and performance.",
-  },
-  {
-    title: "Ask your business",
-    body: "Ask questions about sales, inventory, expenses, and money owed.",
-  },
-  {
-    title: "Make better decisions",
-    body: "Use your own business data to answer practical operational questions.",
-  },
-] as const;
-
-function Mark() {
-  return (
-    <span
-      className="flex size-7 items-center justify-center rounded-md border border-line bg-surface-2"
-      aria-hidden="true"
-    >
-      <span className="flex h-3 items-end gap-px">
-        <span className="h-1.5 w-0.5 rounded-full bg-accent/70" />
-        <span className="h-3 w-0.5 rounded-full bg-accent" />
-        <span className="h-2 w-0.5 rounded-full bg-accent/80" />
-      </span>
-    </span>
-  );
-}
+export const metadata: Metadata = {
+  title: "Meri — Run your business by voice",
+  description:
+    "Voice-first assistant for small-business owners. Record sales, track expenses, manage inventory, and ask questions simply by talking to Meri.",
+};
 
 export default function Home() {
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header className="sticky top-0 z-20 border-b border-line bg-background">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-5 sm:px-8">
-          <a
-            href="#product"
-            className="flex min-w-0 flex-1 items-center gap-2.5 md:flex-none"
-          >
-            <Mark />
-            <span className="truncate text-sm font-medium tracking-tight">
-              Meri
-            </span>
-          </a>
+    <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-200 overflow-x-clip">
+      <Navbar />
 
-          <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
-            {navLinks.map((link) =>
-              link.href.startsWith("/") ? (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ) : (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="transition-colors hover:text-foreground"
-                >
-                  {link.label}
-                </a>
-              ),
-            )}
-          </nav>
+      <main className="flex-1">
+        {/* Section 1: Hero */}
+        <HeroSection />
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <details className="relative md:hidden">
-              <summary
-                className="flex size-11 cursor-pointer list-none items-center justify-center rounded-lg border border-line text-muted transition-colors hover:border-accent hover:text-foreground"
-                aria-label="Open navigation menu"
-                title="Open navigation menu"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                >
-                  <path d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-              </summary>
-              <div className="absolute right-0 mt-2 w-44 rounded-lg border border-line bg-surface p-2 shadow-lg">
-                {navLinks.map((link) =>
-                  link.href.startsWith("/") ? (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="block rounded-md px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-foreground"
-                    >
-                      {link.label}
-                    </Link>
-                  ) : (
-                    <a
-                      key={link.href}
-                      href={link.href}
-                      className="block rounded-md px-3 py-2 text-sm text-muted hover:bg-surface-2 hover:text-foreground"
-                    >
-                      {link.label}
-                    </a>
-                  ),
-                )}
-              </div>
-            </details>
-            <Link
-              href="/assistant"
-              className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
-            >
-              <span className="sm:hidden">Try</span>
-              <span className="hidden sm:inline">Try the assistant</span>
-            </Link>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+        {/* Section 2: The Problem */}
+        <ProblemSection />
 
-      <main>
-        <section
-          id="product"
-          className="relative overflow-hidden scroll-mt-16"
-        >
-          <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-14 lg:py-20">
-            <div className="min-w-0">
-              <p
-                className="enter-up text-sm font-medium text-accent"
-                style={{ animationDelay: "40ms" }}
-              >
-                Your business, guided by voice.
-              </p>
-              <h1
-                className="enter-up mt-4 max-w-xl text-[2.35rem] font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.4rem]"
-                style={{ animationDelay: "90ms" }}
-              >
-                Meet Meri, your business guide.
-              </h1>
-              <p
-                className="enter-up mt-6 max-w-lg text-base leading-7 text-muted sm:text-[17px]"
-                style={{ animationDelay: "140ms" }}
-              >
-                Speak naturally about sales, expenses, inventory, and customer
-                debts. The assistant turns what you say into structured business
-                records and helps you understand what is happening in your
-                business.
-              </p>
-              <div
-                className="enter-up mt-8 flex flex-wrap items-center gap-3"
-                style={{ animationDelay: "200ms" }}
-              >
-                <Link
-                  href="/assistant"
-                    className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
-                >
-                  Try the assistant
-                </Link>
-                <a
-                  href="#how-it-works"
-                    className="rounded-md border border-line px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-surface-2"
-                >
-                  See how it works
-                </a>
-              </div>
-            </div>
-            <ProductPreview />
-          </div>
-        </section>
+        {/* Section 3: How Meri Works */}
+        <HowItWorksSection />
 
-        <section
-          id="how-it-works"
-          className="scroll-mt-16 border-t border-line"
-        >
-          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
-            <p className="text-sm font-medium text-accent">How Meri works</p>
-            <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight">
-              Speak. Record. Understand. Decide.
-            </h2>
-            <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {steps.map((step, index) => (
-                <article
-                  key={step.title}
-                  className="rounded-lg border border-line bg-surface p-5 transition-colors duration-200 hover:border-accent/35"
-                >
-                  <p className="font-mono text-xs text-faint">
-                    0{index + 1}
-                  </p>
-                  <h3 className="mt-3 text-base font-medium">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted">
-                    {step.body}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Section 4: What Meri Can Handle */}
+        <CapabilitiesSection />
 
-        <section className="border-t border-line">
-          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
-            <p className="text-sm font-medium text-accent">Built for daily operations</p>
-            <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight">
-              Everyday operations, without the forms.
-            </h2>
-            <div className="mt-10 grid gap-3 md:grid-cols-2">
-              {capabilities.map((item) => (
-                <article
-                  key={item.title}
-                  className="rounded-lg border border-line bg-surface p-6 transition-colors hover:border-accent/35"
-                >
-                  <h3 className="text-base font-medium">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted">
-                    {item.body}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Section 5: Product Visualization */}
+        <ProductVisualization />
 
-        <section className="border-t border-line">
-          <div className="mx-auto max-w-6xl px-5 py-16 text-center sm:px-8 sm:py-20">
-            <h2 className="text-3xl font-semibold tracking-tight">
-              Keep moving with Meri.
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted">
-              Capture what happens in the shop, keep a live view of the
-              business, and ask questions when you need to decide.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/assistant"
-                className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
-              >
-                Try the assistant
-              </Link>
-              <a
-                href="#how-it-works"
-                className="rounded-md border border-line px-4 py-2.5 text-sm text-foreground transition-colors hover:bg-surface-2"
-              >
-                See how it works
-              </a>
-            </div>
-          </div>
-        </section>
+        {/* Section 6: Voice + Text */}
+        <VoiceTextSection />
+
+        {/* Section 7: Final CTA */}
+        <CtaSection />
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <div>
-            <p className="text-sm font-medium">Meri</p>
-            <p className="mt-1 text-sm text-muted">
-              Run your business by voice.
-            </p>
-          </div>
-          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
-            <a href="#product" className="hover:text-foreground">
-              Product
-            </a>
-            <a href="#how-it-works" className="hover:text-foreground">
-              How it works
-            </a>
-            <Link href="/assistant" className="hover:text-foreground">
-              Assistant
-            </Link>
-            <a
-              href="https://github.com/Fraol-D/Voice-First-Business-Assistant"
-              className="hover:text-foreground"
-              target="_blank"
-              rel="noreferrer"
-            >
-              GitHub
-            </a>
-          </nav>
-        </div>
-      </footer>
+      {/* Section 8: Footer */}
+      <Footer />
     </div>
   );
 }

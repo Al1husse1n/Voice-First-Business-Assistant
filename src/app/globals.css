@@ -3,17 +3,17 @@
 
 :root {
   color-scheme: dark;
-  --background: #0a0a0a;
+  --background: #111111;
   --foreground: #ffffff;
-  --surface: #141414;
-  --surface-subtle: #101010;
-  --surface-strong: #181818;
-  --muted: #8e8e93;
+  --surface: #181818;
+  --surface-subtle: #141414;
+  --surface-strong: #222222;
+  --muted: #a3a3a3;
   --faint: #737373;
-  --border: #262626;
+  --border: #2a2a2a;
   --border-strong: #383838;
   --primary: #ffffff;
-  --primary-foreground: #0a0a0a;
+  --primary-foreground: #111111;
   --accent: #fe6904;
   --accent-foreground: #ffffff;
   --success: #16a34a;
@@ -28,6 +28,14 @@
   --attention: var(--warning);
   --negative: var(--error);
 
+  /* Dedicated dark surface tokens (§4, §9) */
+  --surface-dark: #111111;
+  --surface-dark-subtle: #181818;
+  --surface-dark-strong: #222222;
+  --border-dark: #2a2a2a;
+  --foreground-dark: #ffffff;
+  --muted-dark: #a3a3a3;
+
   /* Voice Orb Tokens (§13–§15) */
   --orb-bg-gradient: radial-gradient(circle at 50% 50%, #222222 0%, #1a1a1c 65%, #141416 100%);
   --orb-inner-bg: #222222;
@@ -35,11 +43,14 @@
   --orb-inner-border: rgba(254, 105, 4, 0.35);
   --orb-ring: rgba(254, 105, 4, 0.4);
 
-  /* Inventory Status Pill Tokens (§20–§21) */
-  --badge-stock-bg: rgba(6, 78, 59, 0.45);
-  --badge-stock-border: rgba(16, 185, 129, 0.35);
-  --badge-stock-text: #34d399;
-  --badge-stock-dot: #34d399;
+  /* Status Tokens */
+  --badge-stock-bg: rgba(255, 255, 255, 0.06);
+  --badge-stock-border: rgba(255, 255, 255, 0.14);
+  --badge-stock-text: #ffffff;
+  --badge-stock-dot: #ffffff;
+
+  /* Outline Experiment Token */
+  --outline-accent: #FE6904;
 }
 
 :root[data-theme="light"],
@@ -47,16 +58,16 @@
 html[data-theme="light"],
 html.light {
   color-scheme: light;
-  --background: #f8f9fa;
-  --foreground: #111827;
-  --surface: #f0f2f5;
-  --surface-subtle: #ffffff;
-  --surface-strong: #e5e7eb;
-  --muted: #4b5563;
-  --faint: #9ca3af;
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-  --primary: #111827;
+  --background: #ffffff;
+  --foreground: #111111;
+  --surface: #f7f7f7;
+  --surface-subtle: #fafafa;
+  --surface-strong: #eeeeee;
+  --muted: #6b6b6b;
+  --faint: #8a8a8a;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --primary: #111111;
   --primary-foreground: #ffffff;
   --accent: #fe6904;
   --accent-foreground: #ffffff;
@@ -72,6 +83,14 @@ html.light {
   --attention: var(--warning);
   --negative: var(--error);
 
+  /* Dedicated dark surface tokens remain dark in light theme */
+  --surface-dark: #111111;
+  --surface-dark-subtle: #181818;
+  --surface-dark-strong: #222222;
+  --border-dark: #2a2a2a;
+  --foreground-dark: #ffffff;
+  --muted-dark: #a3a3a3;
+
   /* Voice Orb Tokens (§13–§15) */
   --orb-bg-gradient: radial-gradient(circle at 50% 50%, #ffffff 0%, #f7f7f8 65%, #eeeeef 100%);
   --orb-inner-bg: #ffffff;
@@ -79,11 +98,14 @@ html.light {
   --orb-inner-border: rgba(254, 105, 4, 0.35);
   --orb-ring: rgba(254, 105, 4, 0.38);
 
-  /* Inventory Status Pill Tokens (§20–§21) */
-  --badge-stock-bg: #ecfdf5;
-  --badge-stock-border: #a7f3d0;
-  --badge-stock-text: #047857;
-  --badge-stock-dot: #16a34a;
+  /* Status Tokens */
+  --badge-stock-bg: #f0f0f0;
+  --badge-stock-border: #d4d4d4;
+  --badge-stock-text: #111111;
+  --badge-stock-dot: #111111;
+
+  /* Outline Experiment Token */
+  --outline-accent: #FE6904;
 }
 
 @theme inline {
@@ -93,13 +115,20 @@ html.light {
   --color-surface-subtle: var(--surface-subtle);
   --color-surface-strong: var(--surface-strong);
   --color-surface-2: var(--surface-2);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-dark-subtle: var(--surface-dark-subtle);
+  --color-surface-dark-strong: var(--surface-dark-strong);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-border-dark: var(--border-dark);
+  --color-foreground-dark: var(--foreground-dark);
+  --color-muted-dark: var(--muted-dark);
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-dim: var(--accent-dim);
+  --color-outline-accent: var(--outline-accent);
   --color-voice: var(--voice);
   --color-voice-dim: var(--voice-dim);
   --color-accent-foreground: var(--accent-foreground);
@@ -125,8 +154,9 @@ body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   overflow-x: hidden;
   transition:
-    background-color 180ms ease,
-    color 180ms ease;
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease;
 }
 
 h1,
@@ -152,7 +182,7 @@ input:not(#chat-input):focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--outline-accent);
   outline-offset: 3px;
 }
 

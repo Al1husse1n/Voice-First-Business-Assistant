@@ -1,0 +1,223 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
+
+const NAV_LINKS = [
+  { href: "#preview", label: "Product" },
+  { href: "#how-it-works", label: "How it works" },
+  { href: "/assistant", label: "Assistant", isRoute: true },
+];
+
+export function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 8);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  // Handle escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <header
+      className={`sticky top-0 z-40 w-full border-b border-border transition-all duration-200 ${
+        isScrolled
+          ? "bg-background/80 backdrop-blur-md"
+          : "bg-transparent"
+      }`}
+    >
+      <div className="relative mx-auto flex h-16 w-full max-w-[1240px] items-center px-4 sm:px-8">
+        {/* Zone 1: Left — Wordmark with small #FE6904 dot */}
+        <div className="flex items-center">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 rounded-sm py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Meri homepage"
+          >
+            <span className="font-display text-xl font-bold tracking-tight text-foreground">
+              Meri
+            </span>
+            <span
+              className="size-1.5 rounded-full bg-[#FE6904]"
+              aria-hidden="true"
+            />
+          </Link>
+        </div>
+
+        {/* Zone 2: Center — Product, How it works, Assistant */}
+        <nav
+          className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8 text-[15px] font-medium text-foreground"
+          aria-label="Main navigation"
+        >
+          {NAV_LINKS.map((link) =>
+            link.isRoute ? (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="group relative py-1 text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                {link.label}
+                <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-foreground transition-all duration-200 group-hover:w-full" />
+              </Link>
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                className="group relative py-1 text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                {link.label}
+                <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-foreground transition-all duration-200 group-hover:w-full" />
+              </a>
+            ),
+          )}
+        </nav>
+
+        {/* Zone 3: Right — Flush right (ml-auto) flex group holding ThemeToggle then CTA */}
+        <div className="hidden md:flex ml-auto items-center gap-2.5">
+          <ThemeToggle />
+          <Link
+            href="/assistant"
+            className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            Try Meri
+          </Link>
+        </div>
+
+        {/* Mobile hamburger icon on right */}
+        <div className="flex md:hidden ml-auto items-center">
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-all duration-200 hover:opacity-70 hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Open navigation menu"
+            aria-expanded={isOpen}
+          >
+            <svg
+              className="size-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Full-Screen Overlay / Sheet */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-background/98 px-6 py-5 backdrop-blur-xl md:hidden animate-[enter-up_0.25s_ease-out_both]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
+        >
+          <div className="flex items-center justify-between border-b border-border pb-4">
+            <Link
+              href="/"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-1.5 rounded-sm py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Meri homepage"
+            >
+              <span className="font-display text-xl font-bold tracking-tight text-foreground">
+                Meri
+              </span>
+              <span
+                className="size-1.5 rounded-full bg-[#FE6904]"
+                aria-hidden="true"
+              />
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="inline-flex size-10 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-all duration-200 hover:opacity-70 hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Close navigation menu"
+            >
+              <svg
+                className="size-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <nav className="mt-8 flex flex-col gap-6">
+            {NAV_LINKS.map((link) =>
+              link.isRoute ? (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className="font-display text-2xl font-semibold tracking-tight text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className="font-display text-2xl font-semibold tracking-tight text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                >
+                  {link.label}
+                </a>
+              ),
+            )}
+          </nav>
+
+          <div className="mt-auto border-t border-border pt-6 pb-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
+            <Link
+              href="/assistant"
+              onClick={() => setIsOpen(false)}
+              className="flex w-full items-center justify-center rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              Try Meri
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

@@ -111,16 +111,27 @@ export function AssistantWorkspace() {
 
   useEffect(() => {
     let active = true;
-    healthCheck()
-      .then((res) => {
-        if (!active) return;
-        setBackendStatus(res.ok && res.data.status === "ok" ? "ok" : "offline");
-      })
-      .catch(() => {
-        if (active) setBackendStatus("offline");
-      });
+
+    const runHealthCheck = () => {
+      healthCheck()
+        .then((res) => {
+          if (!active) return;
+          setBackendStatus(res.ok && res.data.status === "ok" ? "ok" : "offline");
+        })
+        .catch(() => {
+          if (active) setBackendStatus("offline");
+        });
+    };
+
+    runHealthCheck();
+
+    const intervalId = window.setInterval(runHealthCheck, 15000);
+    window.addEventListener("focus", runHealthCheck);
+
     return () => {
       active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", runHealthCheck);
     };
   }, []);
 
@@ -462,16 +473,24 @@ export function AssistantWorkspace() {
           <div className="flex items-center gap-3">
             <div
               className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted"
-              title={`Status: ${backendStatus}`}
+              aria-live="polite"
+              title={
+                backendStatus === "ok"
+                  ? "Connected"
+                  : backendStatus === "checking"
+                  ? "Checking…"
+                  : "Can't reach the backend. Voice and recording may not work."
+              }
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
                   backendStatus === "ok"
-                    ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse"
+                    ? "bg-[#16A34A]"
                     : backendStatus === "checking"
                     ? "bg-amber-400 animate-pulse"
                     : "bg-foreground/30"
                 }`}
+                aria-hidden="true"
               />
               <span className="font-inter text-[11px] sm:text-xs">
                 {backendStatus === "ok"
