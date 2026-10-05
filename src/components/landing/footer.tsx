@@ -44,12 +44,6 @@ export function Footer() {
               >
                 Capabilities
               </a>
-              <a
-                href="#capabilities"
-                className="rounded-sm transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                Capabilities
-              </a>
             </div>
 
             <div className="flex flex-col gap-3">
