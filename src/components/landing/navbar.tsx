@@ -13,15 +13,6 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 8);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -46,11 +37,7 @@ export function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full border-b border-border transition-all duration-200 ${
-        isScrolled
-          ? "bg-background/80 backdrop-blur-md"
-          : "bg-transparent"
-      }`}
+      className="sticky top-0 z-40 w-full border-b border-border bg-background"
     >
       <div className="relative mx-auto flex h-16 w-full max-w-[1240px] items-center px-4 sm:px-8">
         <div className="flex items-center">
@@ -131,7 +118,7 @@ export function Navbar() {
       {/* Mobile Full-Screen Overlay / Sheet */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-background/98 px-6 py-5 backdrop-blur-xl md:hidden animate-[enter-up_0.25s_ease-out_both]"
+          className="fixed inset-0 z-50 flex flex-col bg-background px-6 py-5 md:hidden animate-[enter-up_0.25s_ease-out_both]"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"

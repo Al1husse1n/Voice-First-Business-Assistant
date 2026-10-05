@@ -25,7 +25,7 @@ function createCells(width: number, height: number): SignalCell[] {
       id,
       x: column * CELL_SIZE + (row % 2 ? 22 : 0),
       y: row * CELL_SIZE + 18,
-      size: 10 + ((id * 7) % 9),
+      size: 28 + ((id * 7) % 9),
       opacity: 0.18 + ((id * 13) % 10) / 100,
     };
   });
@@ -152,8 +152,9 @@ export function SignalField() {
                 "--signal-opacity": cell.opacity,
               } as React.CSSProperties}
             >
-              <span className="signal-glyph-wave" />
-              <span className="signal-glyph-dot" />
+              <span className="signal-glyph-bar signal-glyph-bar-short" />
+              <span className="signal-glyph-bar signal-glyph-bar-tall" />
+              <span className="signal-glyph-bar signal-glyph-bar-medium" />
             </span>
           );
         })}

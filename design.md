@@ -1515,10 +1515,14 @@ should remain visible as an intentional guide through the interface.
 
 ## Meri Signal Field
 
-The hero may use a restrained atmospheric field made from repeating abstract
-voice/signal glyphs. This is a brand atmosphere, not a primary interaction.
+The hero uses a restrained atmospheric field made from repeating simplified
+three-vertical-bar Meri logo marks. This is a brand atmosphere, not a second
+logo or a primary interaction. The marks are physically visible but kept
+subtle through restrained opacity; they must not read as faces, microphones, or
+generic waveform icons.
 
-* Use a grid around `CELL_SIZE ≈ 92px` with small, varied, low-opacity glyphs.
+* Use a grid around `CELL_SIZE ≈ 92px` with substantially visible, varied-size
+  three-bar marks and restrained opacity.
 * Gently repel glyphs within approximately `140px` of the cursor, with a
   maximum displacement of approximately `25px`.
 * A click pulse may travel within approximately `150px`: opacity follows
@@ -1532,11 +1536,15 @@ voice/signal glyphs. This is a brand atmosphere, not a primary interaction.
 
 ## Business Ticker
 
-The homepage may use a compact horizontal marquee for core business operations:
+The homepage uses a compact horizontal marquee for core business operations:
 Sales, Expenses, Purchases, Inventory, Customer Debt, and Business Insights.
-It runs continuously at approximately `34s` on desktop and `28s` on mobile,
-pauses on hover, uses subtle separators and sparse Meri orange, and should feel
-like a living product signal rather than a news ticker.
+It is implemented as two or more identical adjacent content-sized sequences,
+with enough copies measured to cover the viewport plus one complete sequence.
+The track translates by exactly one measured sequence width, so there is no
+blank interval, visible reset, or jump. It runs continuously at approximately
+`34s` on desktop and `28s` on mobile, pauses on hover, uses subtle separators
+and sparse Meri orange, and should feel like a living product signal rather
+than a news ticker or generic carousel.
 
 ## Color and motion principles
 
@@ -1549,7 +1557,12 @@ Preferred primary easing is `cubicBezier(0.16, 1, 0.3, 1)`. Motion should
 communicate interaction, state changes, product intelligence, signal, flow, and
 hierarchy without becoming decorative noise.
 
-## Concise homepage structure
+## Navbar and concise homepage structure
+
+Meri does not use glassmorphism. The homepage navbar is flat and opaque:
+no backdrop blur, frosted glass, glass-like translucency, or decorative
+glass-panel effects. Preserve the existing structure, spacing, responsive
+behavior, logo, theme toggle, and CTA.
 
 The preferred homepage structure is:
 

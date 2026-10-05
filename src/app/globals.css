@@ -310,24 +310,16 @@ summary::-webkit-details-marker {
   will-change: transform;
 }
 
-.signal-glyph-wave {
-  width: 42%;
-  height: 52%;
-  border: 1px solid currentColor;
-  border-left: 0;
-  border-top-color: transparent;
-  border-bottom-color: transparent;
-  border-radius: 0 80% 80% 0;
-  opacity: 0.75;
-}
-
-.signal-glyph-dot {
-  width: 18%;
-  height: 18%;
+.signal-glyph-bar {
+  width: 3px;
   border-radius: 9999px;
   background: currentColor;
-  opacity: 0.8;
+  opacity: 0.72;
 }
+
+.signal-glyph-bar-short { height: 42%; opacity: 0.5; }
+.signal-glyph-bar-tall { height: 86%; }
+.signal-glyph-bar-medium { height: 64%; opacity: 0.65; }
 
 .signal-glyph-pulse {
   animation: signal-pulse 0.45s cubic-bezier(0.16, 1, 0.3, 1) var(--pulse-delay) both;
@@ -350,6 +342,10 @@ summary::-webkit-details-marker {
 
 .business-ticker-track {
   animation: business-marquee 34s linear infinite;
+}
+
+.business-ticker-sequence {
+  flex: 0 0 auto;
 }
 
 .business-ticker:hover .business-ticker-track {
@@ -375,12 +371,18 @@ summary::-webkit-details-marker {
 .signal-ticker-mark span:nth-child(3) { height: 7px; opacity: 0.7; }
 
 @keyframes business-marquee {
-  to { transform: translateX(-50%); }
+  to { transform: translate3d(var(--ticker-distance, 0px), 0, 0); }
 }
 
 @media (max-width: 767px) {
   .business-ticker-track {
     animation-duration: 28s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .business-ticker-track {
+    animation: none;
   }
 }
 
