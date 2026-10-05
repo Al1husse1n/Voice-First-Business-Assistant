@@ -1500,3 +1500,66 @@ The implementation is considered visually complete when:
 * no unsupported product capability is visually implied
 * no raw backend JSON is presented as normal user-facing UI
 * all changes remain compatible with the existing backend/API architecture
+
+---
+
+# 46. Meri Signal and Ticker Guidance
+
+## Creative North Star
+
+**Voice-first business control, expressed through signal, motion, and clarity.**
+
+Meri should feel modern, confident, alive, practical, intelligent, and
+approachable. Minimal does not mean black and white only: the orange accent
+should remain visible as an intentional guide through the interface.
+
+## Meri Signal Field
+
+The hero may use a restrained atmospheric field made from repeating abstract
+voice/signal glyphs. This is a brand atmosphere, not a primary interaction.
+
+* Use a grid around `CELL_SIZE ≈ 92px` with small, varied, low-opacity glyphs.
+* Gently repel glyphs within approximately `140px` of the cursor, with a
+  maximum displacement of approximately `25px`.
+* A click pulse may travel within approximately `150px`: opacity follows
+  `1 → 0 → 1`, scale follows `1 → 0.35 → 1`, and pulse delay is based on
+  distance from the click.
+* Use approximately `0.45s` pulse duration, `0.28s` hover/idle motion, and
+  clear the click state after approximately `520ms`.
+* Use deliberate easing, preferably `cubicBezier(0.16, 1, 0.3, 1)`.
+* Keep the field behind content, masked at the edges, pointer-safe, responsive,
+  and disabled or made static for reduced-motion users.
+
+## Business Ticker
+
+The homepage may use a compact horizontal marquee for core business operations:
+Sales, Expenses, Purchases, Inventory, Customer Debt, and Business Insights.
+It runs continuously at approximately `34s` on desktop and `28s` on mobile,
+pauses on hover, uses subtle separators and sparse Meri orange, and should feel
+like a living product signal rather than a news ticker.
+
+## Color and motion principles
+
+Meri's orange accent is used intentionally for primary CTAs, active states,
+voice/Voxide elements, assistant/orb highlights, and meaningful hover/focus
+states. Surfaces remain predominantly monochrome, but orange must direct
+attention and reinforce voice and signal.
+
+Preferred primary easing is `cubicBezier(0.16, 1, 0.3, 1)`. Motion should
+communicate interaction, state changes, product intelligence, signal, flow, and
+hierarchy without becoming decorative noise.
+
+## Concise homepage structure
+
+The preferred homepage structure is:
+
+1. Hero
+2. Business ticker and atmospheric transition
+3. Product demonstration
+4. Concise supporting capabilities
+5. Final CTA
+6. Footer
+
+The product demonstration should carry most of the explanatory burden. Avoid
+repeating separate sections about business-owner pain, voice versus typing, or
+the same capabilities in multiple large marketing blocks.

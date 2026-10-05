@@ -143,8 +143,14 @@ export function ProductVisualization() {
             </div>
 
             <div className="flex flex-col items-center gap-3">
-              <div className={`relative flex size-32 items-center justify-center rounded-full border border-accent/60 bg-[radial-gradient(circle_at_50%_45%,#3a2418_0%,#211a16_48%,#171717_100%)] shadow-[0_0_44px_rgba(254,105,4,0.22)] orb-breathe-animation ${step === 2 ? "ring-2 ring-accent/40" : ""}`}>
-                <div className={`flex size-16 items-center justify-center rounded-full border border-accent/50 bg-[#241a14] transition-all duration-500 ${step === 2 ? "shadow-[0_0_24px_rgba(254,105,4,0.45)]" : ""}`}>
+              <div
+                className={`relative flex size-32 items-center justify-center rounded-full border border-accent/60 shadow-[0_0_44px_rgba(254,105,4,0.22)] orb-breathe-animation ${step === 2 ? "ring-2 ring-accent/40" : ""}`}
+                style={{ background: "var(--orb-bg-gradient)" }}
+              >
+                <div
+                  className={`flex size-16 items-center justify-center rounded-full border border-accent/50 transition-all duration-500 ${step === 2 ? "shadow-[0_0_24px_rgba(254,105,4,0.45)]" : ""}`}
+                  style={{ backgroundColor: "var(--orb-inner-bg-active)" }}
+                >
                   {step === 2 ? (
                     <div className="flex items-center gap-1" aria-label="Meri is thinking">
                       <span className="size-2 rounded-full bg-accent animate-pulse" />

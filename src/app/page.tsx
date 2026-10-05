@@ -5,6 +5,8 @@ import { CapabilitiesSection } from "@/components/landing/capabilities-section";
 import { ProductVisualization } from "@/components/landing/product-visualization";
 import { CtaSection } from "@/components/landing/cta-section";
 import { Footer } from "@/components/landing/footer";
+import { SignalField } from "@/components/landing/signal-field";
+import { BusinessTicker } from "@/components/landing/business-ticker";
 
 export const metadata: Metadata = {
   title: "Meri — Run your business by voice",
@@ -17,7 +19,11 @@ export default function Home() {
     <div className="flex min-h-screen flex-col overflow-x-clip bg-background text-foreground transition-colors duration-200">
       <Navbar />
       <main className="flex-1">
-        <HeroSection />
+        <div className="relative">
+          <SignalField />
+          <HeroSection />
+        </div>
+        <BusinessTicker />
         <ProductVisualization />
         <CapabilitiesSection />
         <CtaSection />
