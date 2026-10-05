@@ -59,9 +59,7 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
       title={label}
     >
       <span
-        className={`inline-flex items-center justify-center transition-all duration-200 transform ${
-          isLight ? "rotate-90 scale-95 opacity-100" : "rotate-0 scale-100 opacity-100"
-        }`}
+        className="inline-flex items-center justify-center transition-opacity duration-200"
       >
         {isLight ? <MoonIcon /> : <SunIcon />}
       </span>
