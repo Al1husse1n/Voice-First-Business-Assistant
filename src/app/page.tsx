@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/components/landing/navbar";
 import { HeroSection } from "@/components/landing/hero-section";
-import { ProblemSection } from "@/components/landing/problem-section";
-import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { CapabilitiesSection } from "@/components/landing/capabilities-section";
 import { ProductVisualization } from "@/components/landing/product-visualization";
-import { VoiceTextSection } from "@/components/landing/voice-text-section";
 import { CtaSection } from "@/components/landing/cta-section";
 import { Footer } from "@/components/landing/footer";
+import { SignalField } from "@/components/landing/signal-field";
+import { BusinessTicker } from "@/components/landing/business-ticker";
 
 export const metadata: Metadata = {
   title: "Meri — Run your business by voice",
@@ -17,33 +16,18 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-200 overflow-x-clip">
+    <div className="flex min-h-screen flex-col overflow-x-clip bg-background text-foreground transition-colors duration-200">
       <Navbar />
-
       <main className="flex-1">
-        {/* Section 1: Hero */}
-        <HeroSection />
-
-        {/* Section 2: The Problem */}
-        <ProblemSection />
-
-        {/* Section 3: How Meri Works */}
-        <HowItWorksSection />
-
-        {/* Section 4: What Meri Can Handle */}
-        <CapabilitiesSection />
-
-        {/* Section 5: Product Visualization */}
+        <div className="relative">
+          <SignalField />
+          <HeroSection />
+        </div>
+        <BusinessTicker />
         <ProductVisualization />
-
-        {/* Section 6: Voice + Text */}
-        <VoiceTextSection />
-
-        {/* Section 7: Final CTA */}
+        <CapabilitiesSection />
         <CtaSection />
       </main>
-
-      {/* Section 8: Footer */}
       <Footer />
     </div>
   );

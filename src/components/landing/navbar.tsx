@@ -3,24 +3,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MeriLogo } from "@/components/landing/meri-logo";
 
 const NAV_LINKS = [
-  { href: "#preview", label: "Product" },
-  { href: "#how-it-works", label: "How it works" },
+  { href: "#demo", label: "Demo" },
+  { href: "#capabilities", label: "Capabilities" },
   { href: "/assistant", label: "Assistant", isRoute: true },
 ];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 8);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -45,27 +37,16 @@ export function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full border-b border-border transition-all duration-200 ${
-        isScrolled
-          ? "bg-background/80 backdrop-blur-md"
-          : "bg-transparent"
-      }`}
+      className="sticky top-0 z-40 w-full border-b border-border bg-background"
     >
       <div className="relative mx-auto flex h-16 w-full max-w-[1240px] items-center px-4 sm:px-8">
-        {/* Zone 1: Left — Wordmark with small #FE6904 dot */}
         <div className="flex items-center">
           <Link
             href="/"
             className="flex items-center gap-1.5 rounded-sm py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             aria-label="Meri homepage"
           >
-            <span className="font-display text-xl font-bold tracking-tight text-foreground">
-              Meri
-            </span>
-            <span
-              className="size-1.5 rounded-full bg-[#FE6904]"
-              aria-hidden="true"
-            />
+            <MeriLogo />
           </Link>
         </div>
 
@@ -102,7 +83,7 @@ export function Navbar() {
           <ThemeToggle />
           <Link
             href="/assistant"
-            className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-background shadow-sm shadow-accent/20 transition-all hover:-translate-y-0.5 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             Try Meri
           </Link>
@@ -137,7 +118,7 @@ export function Navbar() {
       {/* Mobile Full-Screen Overlay / Sheet */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex flex-col bg-background/98 px-6 py-5 backdrop-blur-xl md:hidden animate-[enter-up_0.25s_ease-out_both]"
+          className="fixed inset-0 z-50 flex flex-col bg-background px-6 py-5 md:hidden animate-[enter-up_0.25s_ease-out_both]"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"
@@ -149,13 +130,7 @@ export function Navbar() {
               className="flex items-center gap-1.5 rounded-sm py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label="Meri homepage"
             >
-              <span className="font-display text-xl font-bold tracking-tight text-foreground">
-                Meri
-              </span>
-              <span
-                className="size-1.5 rounded-full bg-[#FE6904]"
-                aria-hidden="true"
-              />
+              <MeriLogo />
             </Link>
 
             <button
@@ -211,7 +186,7 @@ export function Navbar() {
             <Link
               href="/assistant"
               onClick={() => setIsOpen(false)}
-              className="flex w-full items-center justify-center rounded-full bg-primary py-3.5 text-base font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-base font-semibold text-background shadow-sm shadow-accent/20 transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               Try Meri
             </Link>

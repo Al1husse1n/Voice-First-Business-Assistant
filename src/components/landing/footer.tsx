@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MeriLogo } from "@/components/landing/meri-logo";
 
 export function Footer() {
   return (
@@ -12,13 +13,7 @@ export function Footer() {
               className="flex items-center gap-1.5 rounded-sm py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label="Meri homepage"
             >
-              <span className="font-display text-xl font-bold tracking-tight text-foreground">
-                Meri
-              </span>
-              <span
-                className="size-1.5 rounded-full bg-[#FE6904]"
-                aria-hidden="true"
-              />
+              <MeriLogo />
             </Link>
             <p className="font-sans mt-3 text-sm leading-relaxed text-muted">
               Run your business by voice. Voice-first operational assistant
@@ -33,22 +28,16 @@ export function Footer() {
                 Product
               </span>
               <a
-                href="#how-it-works"
+                href="#demo"
                 className="rounded-sm transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                How it works
+                Demo
               </a>
               <a
                 href="#capabilities"
                 className="rounded-sm transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Capabilities
-              </a>
-              <a
-                href="#preview"
-                className="rounded-sm transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                Product Preview
               </a>
             </div>
 
