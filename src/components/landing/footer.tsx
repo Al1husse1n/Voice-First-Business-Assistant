@@ -33,10 +33,10 @@ export function Footer() {
                 Product
               </span>
               <a
-                href="#how-it-works"
+                href="#demo"
                 className="rounded-sm transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                How it works
+                Demo
               </a>
               <a
                 href="#capabilities"
@@ -45,10 +45,10 @@ export function Footer() {
                 Capabilities
               </a>
               <a
-                href="#preview"
+                href="#capabilities"
                 className="rounded-sm transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                Product Preview
+                Capabilities
               </a>
             </div>
 

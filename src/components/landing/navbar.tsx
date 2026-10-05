@@ -5,8 +5,8 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_LINKS = [
-  { href: "#preview", label: "Product" },
-  { href: "#how-it-works", label: "How it works" },
+  { href: "#demo", label: "Demo" },
+  { href: "#capabilities", label: "Capabilities" },
   { href: "/assistant", label: "Assistant", isRoute: true },
 ];
 

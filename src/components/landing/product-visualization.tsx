@@ -118,22 +118,22 @@ export function ProductVisualization() {
 
   return (
     <section
-      id="preview"
+      id="demo"
       className="scroll-mt-20 bg-background py-20 lg:py-[120px]"
     >
       <div className="mx-auto max-w-[1240px] px-4 sm:px-8">
         {/* Header */}
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
           <div className="max-w-[560px]">
-            <p className="font-display text-xs font-semibold uppercase tracking-[0.12em] text-[#6B6B6B] dark:text-[#A3A3A3]">
-              Product Visualization
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+              See Meri in action
             </p>
             <h2 className="font-display mt-3 text-[32px] leading-[1.15] font-semibold tracking-[-0.025em] text-foreground sm:text-[38px] lg:text-[44px] lg:leading-[1.1] lg:tracking-[-0.03em]">
-              Real interactions, zero complexity.
+              Say what happened. Get the result.
             </h2>
-            <p className="font-sans mt-4 text-base leading-[1.6] text-[#6B6B6B] dark:text-[#A3A3A3] sm:text-[18px]">
-              See how natural user input is translated into structured business
-              records and clean answers.
+            <p className="mt-4 text-base leading-[1.6] text-muted sm:text-[18px]">
+              A natural request becomes a useful business record or a clear
+              answer.
             </p>
           </div>
 
