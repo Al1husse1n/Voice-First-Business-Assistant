@@ -8,6 +8,7 @@ import { createEvent, healthCheck, queryBusiness } from "@/lib/api/client";
 import type { CreateEventRequest, EventType } from "@/lib/api/types";
 import { DEFAULT_LANGUAGE, MVP_BUSINESS_ID } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export type FeedItem =
   | {
@@ -83,6 +84,7 @@ function withSelectedDate(
 }
 
 export function AssistantWorkspace() {
+  const { user, signOut } = useAuth();
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [inputText, setInputText] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -513,6 +515,25 @@ export function AssistantWorkspace() {
             </button>
 
             <ThemeToggle />
+
+            {user && (
+              <div className="flex items-center gap-2 pl-1 border-l border-border">
+                <span
+                  className="hidden md:inline-block max-w-[140px] truncate text-xs text-muted font-inter"
+                  title={user.email ?? "Authenticated"}
+                >
+                  {user.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className="text-xs font-inter text-muted hover:text-foreground rounded-full border border-border hover:border-border-strong bg-surface px-2.5 py-1 transition-colors cursor-pointer"
+                  title="Sign out of Meri"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>

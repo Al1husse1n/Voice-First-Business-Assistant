@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MeriLogo } from "@/components/landing/meri-logo";
+import { useAuth } from "@/lib/auth/auth-context";
 
-const NAV_LINKS = [
+const PUBLIC_NAV_LINKS = [
   { href: "#demo", label: "Demo" },
   { href: "#capabilities", label: "Capabilities" },
-  { href: "/assistant", label: "Assistant", isRoute: true },
 ];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, signOut, isLoading } = useAuth();
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -55,38 +56,61 @@ export function Navbar() {
           className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8 text-[15px] font-medium text-foreground"
           aria-label="Main navigation"
         >
-          {NAV_LINKS.map((link) =>
-            link.isRoute ? (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="group relative py-1 text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-              >
-                {link.label}
-                <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-foreground transition-all duration-200 group-hover:w-full" />
-              </Link>
-            ) : (
-              <a
-                key={link.href}
-                href={link.href}
-                className="group relative py-1 text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-              >
-                {link.label}
-                <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-foreground transition-all duration-200 group-hover:w-full" />
-              </a>
-            ),
-          )}
-        </nav>
-
-        {/* Zone 3: Right — Flush right (ml-auto) flex group holding ThemeToggle then CTA */}
-        <div className="hidden md:flex ml-auto items-center gap-2.5">
-          <ThemeToggle />
+          {PUBLIC_NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="group relative py-1 text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            >
+              {link.label}
+              <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-foreground transition-all duration-200 group-hover:w-full" />
+            </a>
+          ))}
           <Link
             href="/assistant"
-            className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-background shadow-sm shadow-accent/20 transition-all hover:-translate-y-0.5 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="group relative py-1 text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
           >
-            Try Meri
+            Assistant
+            <span className="absolute bottom-0 left-0 h-[2px] w-0 bg-foreground transition-all duration-200 group-hover:w-full" />
           </Link>
+        </nav>
+
+        {/* Zone 3: Right — Flush right (ml-auto) flex group holding ThemeToggle then CTA / Auth */}
+        <div className="hidden md:flex ml-auto items-center gap-3">
+          <ThemeToggle />
+
+          {!isLoading && user ? (
+            <div className="flex items-center gap-2.5">
+              <Link
+                href="/assistant"
+                className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-background shadow-sm shadow-accent/20 transition-all hover:-translate-y-0.5 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                Assistant
+              </Link>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="text-xs font-medium text-muted hover:text-foreground transition-colors px-2 py-1 rounded-sm cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Link
+                href="/login"
+                className="text-sm font-medium text-foreground hover:opacity-70 transition-opacity"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/assistant"
+                className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-background shadow-sm shadow-accent/20 transition-all hover:-translate-y-0.5 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                Try Meri
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Mobile hamburger icon on right */}
@@ -155,27 +179,23 @@ export function Navbar() {
           </div>
 
           <nav className="mt-8 flex flex-col gap-6">
-            {NAV_LINKS.map((link) =>
-              link.isRoute ? (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className="font-display text-2xl font-semibold tracking-tight text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-                >
-                  {link.label}
-                </Link>
-              ) : (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className="font-display text-2xl font-semibold tracking-tight text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
-                >
-                  {link.label}
-                </a>
-              ),
-            )}
+            {PUBLIC_NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setIsOpen(false)}
+                className="font-display text-2xl font-semibold tracking-tight text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                {link.label}
+              </a>
+            ))}
+            <Link
+              href="/assistant"
+              onClick={() => setIsOpen(false)}
+              className="font-display text-2xl font-semibold tracking-tight text-foreground transition-opacity duration-200 hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            >
+              Assistant
+            </Link>
           </nav>
 
           <div className="mt-auto border-t border-border pt-6 pb-4 flex flex-col gap-4">
@@ -183,13 +203,45 @@ export function Navbar() {
               <span className="text-sm font-medium text-foreground">Theme</span>
               <ThemeToggle />
             </div>
-            <Link
-              href="/assistant"
-              onClick={() => setIsOpen(false)}
-              className="flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-base font-semibold text-background shadow-sm shadow-accent/20 transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              Try Meri
-            </Link>
+
+            {!isLoading && user ? (
+              <div className="flex flex-col gap-2.5">
+                <Link
+                  href="/assistant"
+                  onClick={() => setIsOpen(false)}
+                  className="flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-base font-semibold text-background shadow-sm shadow-accent/20 transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Assistant
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    void signOut();
+                  }}
+                  className="w-full text-center py-2 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <Link
+                  href="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full text-center py-2 text-sm font-medium text-foreground hover:opacity-70 transition-opacity"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/assistant"
+                  onClick={() => setIsOpen(false)}
+                  className="flex w-full items-center justify-center rounded-full bg-accent py-3.5 text-base font-semibold text-background shadow-sm shadow-accent/20 transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Try Meri
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
