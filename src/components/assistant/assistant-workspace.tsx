@@ -4,8 +4,17 @@ import React, { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import { VoiceOrb } from "./voice-orb";
 import { SaleExpenseCard, ClarificationCard } from "./structured-cards";
-import { createEvent, healthCheck, queryBusiness } from "@/lib/api/client";
-import type { CreateEventRequest, EventType } from "@/lib/api/types";
+import {
+  createEvent,
+  healthCheck,
+  interpretText,
+  queryBusiness,
+} from "@/lib/api/client";
+import type {
+  CreateEventRequest,
+  EventType,
+  InterpretationEventData,
+} from "@/lib/api/types";
 import { DEFAULT_LANGUAGE, MVP_BUSINESS_ID } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -58,10 +67,147 @@ type PendingEvent = {
   summary: string;
   headline: string;
   card: "sale" | "expense" | "note";
+  source?: "text" | "manual";
+};
+
+type PendingClarification = {
+  originalText: string;
+  question: string;
+  missingFields: string[];
 };
 
 function nextId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function textValue(data: InterpretationEventData, key: string): string | null {
+  const value = data[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberValue(data: InterpretationEventData, key: string): number | null {
+  const value = data[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function formatAmount(value: number, currency: string | null): string {
+  return `${value.toLocaleString("en-US")} ${currency ?? "ETB"}`;
+}
+
+function isLikelyNewRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  const newRequestPrefixes = [
+    "how ",
+    "what ",
+    "who ",
+    "where ",
+    "when ",
+    "i sold ",
+    "i bought ",
+    "i spent ",
+    "i lost ",
+    "record ",
+    "add ",
+  ];
+  return newRequestPrefixes.some((prefix) => normalized.startsWith(prefix));
+}
+
+function buildClarificationContinuation(
+  pending: PendingClarification,
+  answer: string,
+): string {
+  return [
+    `Original user statement: ${pending.originalText}`,
+    `Clarification question: ${pending.question}`,
+    `Missing fields: ${pending.missingFields.join(", ")}`,
+    `User clarification answer: ${answer}`,
+    "Resolve the original request using the clarification answer.",
+  ].join("\n");
+}
+
+function pendingEventFromInterpretation(
+  eventType: EventType,
+  data: InterpretationEventData,
+): PendingEvent | null {
+  const currency = textValue(data, "currency")?.toUpperCase() ?? "ETB";
+  if (eventType === "sale" || eventType === "purchase") {
+    const item = textValue(data, "item");
+    const quantity = numberValue(data, "quantity");
+    const amount = numberValue(data, "amount");
+    if (!item || quantity === null || amount === null) return null;
+    const label = eventType === "sale" ? "Sale" : "Purchase";
+    return {
+      request: {
+        business_id: MVP_BUSINESS_ID,
+        language: DEFAULT_LANGUAGE,
+        event_type: eventType,
+        data: { ...data, currency },
+      },
+      summary: `${label} — ${quantity} ${item} for ${formatAmount(amount, currency)}`,
+      headline: `${quantity} ${item} · ${formatAmount(amount, currency)}`,
+      card: eventType === "sale" ? "sale" : "note",
+      source: "text",
+    };
+  }
+
+  if (eventType === "expense") {
+    const description = textValue(data, "description");
+    const amount = numberValue(data, "amount");
+    if (!description || amount === null) return null;
+    return {
+      request: {
+        business_id: MVP_BUSINESS_ID,
+        language: DEFAULT_LANGUAGE,
+        event_type: eventType,
+        data: { ...data, currency },
+      },
+      summary: `Expense — ${description} · ${formatAmount(amount, currency)}`,
+      headline: `${description} · ${formatAmount(amount, currency)}`,
+      card: "expense",
+      source: "text",
+    };
+  }
+
+  if (eventType === "inventory_adjustment") {
+    const item = textValue(data, "item");
+    const quantity = numberValue(data, "quantity");
+    if (!item || quantity === null || quantity === 0) return null;
+    const reason = textValue(data, "reason") ?? "adjustment";
+    const action = quantity < 0 ? `${Math.abs(quantity)} ${item} lost` : `${quantity} ${item} added`;
+    return {
+      request: {
+        business_id: MVP_BUSINESS_ID,
+        language: DEFAULT_LANGUAGE,
+        event_type: eventType,
+        data,
+      },
+      summary: `Inventory adjustment — ${action} (${reason})`,
+      headline: action,
+      card: "note",
+      source: "text",
+    };
+  }
+
+  const customer = textValue(data, "customer");
+  const amount = numberValue(data, "amount");
+  const direction = textValue(data, "direction");
+  if (!customer || amount === null || !direction) return null;
+  const debtSummary =
+    direction === "owed_to_business"
+      ? `${customer} owes the business ${formatAmount(amount, currency)}`
+      : `The business owes ${customer} ${formatAmount(amount, currency)}`;
+  return {
+    request: {
+      business_id: MVP_BUSINESS_ID,
+      language: DEFAULT_LANGUAGE,
+      event_type: eventType,
+      data: { ...data, currency },
+    },
+    summary: `Debt — ${debtSummary}`,
+    headline: debtSummary,
+    card: "note",
+    source: "text",
+  };
 }
 
 function positiveNumber(value: string, label: string): number | string {
@@ -94,6 +240,8 @@ export function AssistantWorkspace() {
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingEvent, setPendingEvent] = useState<PendingEvent | null>(null);
+  const [pendingClarification, setPendingClarification] =
+    useState<PendingClarification | null>(null);
 
   const [manualEventType, setManualEventType] = useState<EventType>("sale");
   const [manualItem, setManualItem] = useState("");
@@ -166,7 +314,7 @@ export function AssistantWorkspace() {
     setFeedItems((prev) => [...prev, item]);
   }
 
-  async function submitQuery(raw: string) {
+  async function submitText(raw: string) {
     const trimmed = raw.trim();
     if (!trimmed || busyRef.current) return;
     busyRef.current = true;
@@ -183,18 +331,25 @@ export function AssistantWorkspace() {
     }
 
     try {
-      const result = await queryBusiness({
-        business_id: MVP_BUSINESS_ID,
-        language: DEFAULT_LANGUAGE,
-        query: trimmed,
-      });
+      const continuesClarification =
+        pendingClarification && !isLikelyNewRequest(trimmed)
+          ? pendingClarification
+          : null;
+      const interpretationText = pendingClarification
+        ? isLikelyNewRequest(trimmed)
+          ? trimmed
+          : continuesClarification
+            ? buildClarificationContinuation(continuesClarification, trimmed)
+            : trimmed
+        : trimmed;
+      const result = await interpretText(interpretationText, DEFAULT_LANGUAGE);
       if (!result.ok) {
         if (result.kind === "clarification") {
           pushFeed({
             id: nextId("clarification"),
             kind: "assistant-clarification",
             question: result.message,
-            options: result.missing_fields ?? [],
+            options: [],
             timestamp: "Needs input",
           });
         } else {
@@ -209,15 +364,80 @@ export function AssistantWorkspace() {
         }
         return;
       }
+      setPendingClarification(null);
+
+      if (result.data.type === "clarification") {
+        setPendingClarification({
+          originalText: continuesClarification?.originalText ?? trimmed,
+          question: result.data.question,
+          missingFields: result.data.missing_fields,
+        });
+        pushFeed({
+          id: nextId("clarification"),
+          kind: "assistant-clarification",
+          question: result.data.question,
+          options: [],
+          timestamp: "Needs input",
+        });
+        return;
+      }
+
+      if (result.data.type === "create_event") {
+        const event = pendingEventFromInterpretation(
+          result.data.event_type,
+          result.data.data,
+        );
+        if (!event) {
+          pushFeed({
+            id: nextId("error"),
+            kind: "assistant-note",
+            badge: "Could not complete",
+            tone: "error",
+            text: "The AI engine returned an incomplete event record.",
+            timestamp: "Just now",
+          });
+          return;
+        }
+        setPendingEvent(event);
+        setIsManualModalOpen(true);
+        return;
+      }
+
+      const queryResult = await queryBusiness({
+        business_id: MVP_BUSINESS_ID,
+        language: DEFAULT_LANGUAGE,
+        query: result.data.query,
+      });
+      if (!queryResult.ok) {
+        if (queryResult.kind === "clarification") {
+          pushFeed({
+            id: nextId("clarification"),
+            kind: "assistant-clarification",
+            question: queryResult.message,
+            options: [],
+            timestamp: "Needs input",
+          });
+        } else {
+          pushFeed({
+            id: nextId("error"),
+            kind: "assistant-note",
+            badge: "Could not complete",
+            tone: "error",
+            text: queryResult.message,
+            timestamp: "Just now",
+          });
+        }
+        return;
+      }
       pushFeed({
         id: nextId("answer"),
         kind: "assistant-note",
         badge: "Answer",
         tone: "answer",
-        text: result.data.message,
+        text: queryResult.data.message,
         timestamp: "Just now",
-        queryType: result.data.query_type,
-        result: result.data.result,
+        queryType: queryResult.data.query_type,
+        result: queryResult.data.result,
       });
     } finally {
       busyRef.current = false;
@@ -228,7 +448,7 @@ export function AssistantWorkspace() {
   const handleChatSubmit = (e?: FormEvent) => {
     if (e) e.preventDefault();
     const rawVal = inputRef.current ? inputRef.current.value : inputText;
-    void submitQuery(rawVal || inputText);
+    void submitText(rawVal || inputText);
   };
 
   const handleClarificationOption = (option: string) => {
@@ -371,6 +591,7 @@ export function AssistantWorkspace() {
     if ("error" in built) {
       setFormError(built.error);
       setPendingEvent(null);
+      setPendingClarification(null);
       return;
     }
     setFormError(null);
@@ -548,7 +769,7 @@ export function AssistantWorkspace() {
             }}
             sublabel={
               querying
-                ? "Checking your business…"
+                ? "Processing your request…"
                 : manualSubmitting
                   ? "Sending this record…"
                   : "Tap to speak or type below"
@@ -640,8 +861,8 @@ export function AssistantWorkspace() {
           {querying && (
             <div className="flex flex-col gap-2 max-w-[95%] sm:max-w-[85%] animate-enter-up">
               <div className="assistant-card w-full" role="status">
-                <span className="assistant-card-badge badge-inventory">Checking</span>
-                <p className="mt-2 text-sm font-inter text-muted">Checking your business…</p>
+                <span className="assistant-card-badge badge-inventory">Processing</span>
+                <p className="mt-2 text-sm font-inter text-muted">Processing your request…</p>
               </div>
             </div>
           )}
@@ -660,7 +881,7 @@ export function AssistantWorkspace() {
               <button
                 key={pill}
                 type="button"
-                onClick={() => void submitQuery(pill)}
+                onClick={() => void submitText(pill)}
                 disabled={busy}
                 className="whitespace-nowrap rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-muted hover:text-foreground hover:border-accent/50 hover:bg-surface-strong transition-all shrink-0 cursor-pointer font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -771,6 +992,7 @@ export function AssistantWorkspace() {
                 </p>
                 <div className="rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground">
                   {pendingEvent.summary}
+                  <p className="mt-2 text-sm text-muted">Record this?</p>
                   {manualDate ? (
                     <span className="mt-1 block text-xs text-muted">Date: {manualDate}</span>
                   ) : null}
@@ -790,7 +1012,7 @@ export function AssistantWorkspace() {
                     disabled={manualSubmitting}
                     className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
                   >
-                    Edit
+                    {pendingEvent.source === "text" ? "Cancel" : "Edit"}
                   </button>
                   <button
                     type="button"
