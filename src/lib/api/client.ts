@@ -1,5 +1,6 @@
-import { getApiBaseUrl } from "@/lib/config";
+import { getAiEngineUrl, getApiBaseUrl } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
+import { EVENT_TYPES } from "@/lib/api/types";
 import type {
   ApiFailure,
   ApiResult,
