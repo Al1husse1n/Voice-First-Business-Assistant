@@ -104,7 +104,12 @@ Copy `.env.example` to `.env.local` and set the backend origin:
 
 ```text
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_AI_ENGINE_URL=https://meri-ai-engine.onrender.com
 ```
+
+Text assistant messages are sent to the configured AI engine's `/interpret`
+endpoint before they are routed to the backend query or event APIs. The
+frontend only needs the AI engine URL; no LLM provider key is exposed here.
 
 Voice is optional. The widget mounts only when both of these are set: `NEXT_PUBLIC_VOXIDE_PUBLIC_KEY` is a real Voxide publishable key, and `NEXT_PUBLIC_VOXIDE_ENABLED=true`. If either is missing, the widget stays off and the text assistant still works. Do not put a placeholder key in application code.
 
