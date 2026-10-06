@@ -1,4 +1,5 @@
 import { getAiEngineUrl, getApiBaseUrl } from "@/lib/config";
+import { createClient } from "@/lib/supabase/client";
 import { EVENT_TYPES } from "@/lib/api/types";
 import type {
   ApiFailure,
@@ -10,6 +11,28 @@ import type {
   QueryRequest,
   QuerySuccess,
 } from "@/lib/api/types";
+
+/**
+ * Retrieves the current Supabase session JWT in the browser and formats
+ * the Authorization header. Prepared for authenticated requests to FastAPI.
+ */
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  try {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      return { Authorization: `Bearer ${session.access_token}` };
+    }
+  } catch {
+    // Graceful fallback when unconfigured or client unavailable
+  }
+  return {};
+}
 
 const CONNECTIVITY_MESSAGE =
   "Unable to connect to the business service. Please try again.";
