@@ -1,10 +1,12 @@
-import { getApiBaseUrl } from "@/lib/config";
+import { getAiEngineUrl, getApiBaseUrl } from "@/lib/config";
+import { EVENT_TYPES } from "@/lib/api/types";
 import type {
   ApiFailure,
   ApiResult,
   CreateEventRequest,
   CreateEventSuccess,
   HealthSuccess,
+  InterpretationResult,
   QueryRequest,
   QuerySuccess,
 } from "@/lib/api/types";
@@ -14,6 +16,10 @@ const CONNECTIVITY_MESSAGE =
 
 const CONFIG_MESSAGE =
   "Backend URL is not configured. Set NEXT_PUBLIC_API_URL and restart the app.";
+const AI_CONFIG_MESSAGE =
+  "AI engine URL is not configured. Set NEXT_PUBLIC_AI_ENGINE_URL and restart the app.";
+const AI_CONNECTIVITY_MESSAGE =
+  "Unable to connect to the AI engine. Please try again.";
 
 type ErrorPayload = {
   success?: boolean;
@@ -32,6 +38,46 @@ function asStringArray(value: unknown): string[] | undefined {
   }
   const fields = value.filter((item): item is string => typeof item === "string");
   return fields.length > 0 ? fields : undefined;
+}
+
+function isEventData(
+  value: unknown,
+): value is Record<string, string | number | null> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every(
+    (item) =>
+      item === null ||
+      typeof item === "string" ||
+      (typeof item === "number" && Number.isFinite(item)),
+  );
+}
+
+function isInterpretationResult(value: unknown): value is InterpretationResult {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const payload = value as Record<string, unknown>;
+  if (payload.type === "create_event") {
+    return (
+      typeof payload.event_type === "string" &&
+      (EVENT_TYPES as readonly string[]).includes(payload.event_type) &&
+      isEventData(payload.data)
+    );
+  }
+  if (payload.type === "query") {
+    return typeof payload.query === "string" && payload.query.trim().length > 0;
+  }
+  if (payload.type === "clarification") {
+    return (
+      typeof payload.question === "string" &&
+      payload.question.trim().length > 0 &&
+      Array.isArray(payload.missing_fields) &&
+      payload.missing_fields.every((field) => typeof field === "string")
+    );
+  }
+  return false;
 }
 
 function failureFromPayload(
@@ -95,6 +141,44 @@ async function request(
   } catch {
     return { ok: false, kind: "network", message: CONNECTIVITY_MESSAGE };
   }
+}
+
+export async function interpretText(
+  text: string,
+  language: string,
+): Promise<ApiResult<InterpretationResult>> {
+  const baseUrl = getAiEngineUrl();
+  if (!baseUrl) {
+    return { ok: false, kind: "config", message: AI_CONFIG_MESSAGE };
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/interpret`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text, language }),
+    });
+  } catch {
+    return { ok: false, kind: "network", message: AI_CONNECTIVITY_MESSAGE };
+  }
+
+  const body = await readJson(response);
+  if (!response.ok) {
+    return failureFromPayload((body ?? {}) as ErrorPayload, response.status);
+  }
+  if (!isInterpretationResult(body)) {
+    return {
+      ok: false,
+      kind: "error",
+      message: "The AI engine returned an unexpected interpretation response.",
+      status: response.status,
+    };
+  }
+  return { ok: true, data: body, status: response.status };
 }
 
 export async function healthCheck(): Promise<ApiResult<HealthSuccess>> {

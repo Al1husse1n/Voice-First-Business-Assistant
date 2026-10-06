@@ -142,7 +142,8 @@
     "tapToSpeak": "Tap to speak",
     "needsInput": "Needs input",
     "couldNotComplete": "Could not complete",
-    "recorded": "Recorded"
+    "recorded": "Recorded",
+    "engineIncompleteError": "The AI engine returned an incomplete event record."
   },
   "cards": {
     "saleRecorded": "Sale Recorded",

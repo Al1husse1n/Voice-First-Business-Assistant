@@ -4,8 +4,17 @@ import React, { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import { VoiceOrb } from "./voice-orb";
 import { SaleExpenseCard, ClarificationCard } from "./structured-cards";
-import { createEvent, healthCheck, queryBusiness } from "@/lib/api/client";
-import type { CreateEventRequest, EventType } from "@/lib/api/types";
+import {
+  createEvent,
+  healthCheck,
+  interpretText,
+  queryBusiness,
+} from "@/lib/api/client";
+import type {
+  CreateEventRequest,
+  EventType,
+  InterpretationEventData,
+} from "@/lib/api/types";
 import { MVP_BUSINESS_ID } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -52,10 +61,148 @@ type PendingEvent = {
   summary: string;
   headline: string;
   card: "sale" | "expense" | "note";
+  source?: "text" | "manual";
+};
+
+type PendingClarification = {
+  originalText: string;
+  question: string;
+  missingFields: string[];
 };
 
 function nextId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function textValue(data: InterpretationEventData, key: string): string | null {
+  const value = data[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberValue(data: InterpretationEventData, key: string): number | null {
+  const value = data[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function isLikelyNewRequest(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  const newRequestPrefixes = [
+    "how ",
+    "what ",
+    "who ",
+    "where ",
+    "when ",
+    "i sold ",
+    "i bought ",
+    "i spent ",
+    "i lost ",
+    "record ",
+    "add ",
+  ];
+  return newRequestPrefixes.some((prefix) => normalized.startsWith(prefix));
+}
+
+function buildClarificationContinuation(
+  pending: PendingClarification,
+  answer: string,
+): string {
+  return [
+    `Original user statement: ${pending.originalText}`,
+    `Clarification question: ${pending.question}`,
+    `Missing fields: ${pending.missingFields.join(", ")}`,
+    `User clarification answer: ${answer}`,
+    "Resolve the original request using the clarification answer.",
+  ].join("\n");
+}
+
+function pendingEventFromInterpretation(
+  eventType: EventType,
+  data: InterpretationEventData,
+  t: (key: string, values?: Record<string, string | number>) => string,
+  locale: string,
+): PendingEvent | null {
+  const currency = textValue(data, "currency")?.toUpperCase() ?? "ETB";
+  if (eventType === "sale" || eventType === "purchase") {
+    const item = textValue(data, "item");
+    const quantity = numberValue(data, "quantity");
+    const amount = numberValue(data, "amount");
+    if (!item || quantity === null || amount === null) return null;
+    const isSale = eventType === "sale";
+    return {
+      request: {
+        business_id: MVP_BUSINESS_ID,
+        language: locale,
+        event_type: eventType,
+        data: { ...data, currency },
+      },
+      summary: isSale
+        ? t("cards.saleSummary", { quantity, item, amount })
+        : t("cards.purchaseSummary", { quantity, item, amount }),
+      headline: isSale
+        ? t("cards.saleHeadline", { quantity, item, amount })
+        : t("cards.purchaseHeadline", { quantity, item, amount }),
+      card: isSale ? "sale" : "note",
+      source: "text",
+    };
+  }
+
+  if (eventType === "expense") {
+    const description = textValue(data, "description");
+    const amount = numberValue(data, "amount");
+    if (!description || amount === null) return null;
+    return {
+      request: {
+        business_id: MVP_BUSINESS_ID,
+        language: locale,
+        event_type: eventType,
+        data: { ...data, currency },
+      },
+      summary: t("cards.expenseSummary", { description, amount }),
+      headline: t("cards.expenseHeadline", { description, amount }),
+      card: "expense",
+      source: "text",
+    };
+  }
+
+  if (eventType === "inventory_adjustment") {
+    const item = textValue(data, "item");
+    const quantity = numberValue(data, "quantity");
+    if (!item || quantity === null || quantity === 0) return null;
+    const reason = textValue(data, "reason") ?? "adjustment";
+    return {
+      request: {
+        business_id: MVP_BUSINESS_ID,
+        language: locale,
+        event_type: eventType,
+        data,
+      },
+      summary: t("cards.inventorySummary", { quantity, item, reason }),
+      headline: t("cards.inventoryHeadline", { quantity, item }),
+      card: "note",
+      source: "text",
+    };
+  }
+
+  const customer = textValue(data, "customer");
+  const amount = numberValue(data, "amount");
+  const direction = textValue(data, "direction");
+  if (!customer || amount === null || !direction) return null;
+  const directionLabel =
+    direction === "owed_to_business"
+      ? t("cards.debtDirectionOwedToBusiness")
+      : t("cards.debtDirectionOwedByBusiness");
+  return {
+    request: {
+      business_id: MVP_BUSINESS_ID,
+      language: locale,
+      event_type: eventType,
+      data: { ...data, currency },
+    },
+    summary: t("cards.debtSummary", { customer, amount, direction: directionLabel }),
+    headline: t("cards.debtHeadline", { customer, amount }),
+    card: "note",
+    source: "text",
+  };
 }
 
 function positiveNumber(
@@ -92,6 +239,8 @@ export function AssistantWorkspace() {
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingEvent, setPendingEvent] = useState<PendingEvent | null>(null);
+  const [pendingClarification, setPendingClarification] =
+    useState<PendingClarification | null>(null);
 
   const [manualEventType, setManualEventType] = useState<EventType>("sale");
   const [manualItem, setManualItem] = useState("");
@@ -164,7 +313,7 @@ export function AssistantWorkspace() {
     setFeedItems((prev) => [...prev, item]);
   }
 
-  async function submitQuery(raw: string) {
+  async function submitText(raw: string) {
     const trimmed = raw.trim();
     if (!trimmed || busyRef.current) return;
     busyRef.current = true;
@@ -181,11 +330,18 @@ export function AssistantWorkspace() {
     }
 
     try {
-      const result = await queryBusiness({
-        business_id: MVP_BUSINESS_ID,
-        language: locale,
-        query: trimmed,
-      });
+      const continuesClarification =
+        pendingClarification && !isLikelyNewRequest(trimmed)
+          ? pendingClarification
+          : null;
+      const interpretationText = pendingClarification
+        ? isLikelyNewRequest(trimmed)
+          ? trimmed
+          : continuesClarification
+            ? buildClarificationContinuation(continuesClarification, trimmed)
+            : trimmed
+        : trimmed;
+      const result = await interpretText(interpretationText, locale);
       if (!result.ok) {
         if (result.kind === "clarification") {
           pushFeed({
@@ -207,15 +363,82 @@ export function AssistantWorkspace() {
         }
         return;
       }
+      setPendingClarification(null);
+
+      if (result.data.type === "clarification") {
+        setPendingClarification({
+          originalText: continuesClarification?.originalText ?? trimmed,
+          question: result.data.question,
+          missingFields: result.data.missing_fields,
+        });
+        pushFeed({
+          id: nextId("clarification"),
+          kind: "assistant-clarification",
+          question: result.data.question,
+          options: result.data.missing_fields ?? [],
+          timestamp: t("assistant.needsInput"),
+        });
+        return;
+      }
+
+      if (result.data.type === "create_event") {
+        const event = pendingEventFromInterpretation(
+          result.data.event_type,
+          result.data.data,
+          t,
+          locale,
+        );
+        if (!event) {
+          pushFeed({
+            id: nextId("error"),
+            kind: "assistant-note",
+            badge: t("assistant.couldNotComplete"),
+            tone: "error",
+            text: t("assistant.engineIncompleteError"),
+            timestamp: t("common.justNow"),
+          });
+          return;
+        }
+        setPendingEvent(event);
+        setIsManualModalOpen(true);
+        return;
+      }
+
+      const queryResult = await queryBusiness({
+        business_id: MVP_BUSINESS_ID,
+        language: locale,
+        query: result.data.query,
+      });
+      if (!queryResult.ok) {
+        if (queryResult.kind === "clarification") {
+          pushFeed({
+            id: nextId("clarification"),
+            kind: "assistant-clarification",
+            question: queryResult.message,
+            options: queryResult.missing_fields ?? [],
+            timestamp: t("assistant.needsInput"),
+          });
+        } else {
+          pushFeed({
+            id: nextId("error"),
+            kind: "assistant-note",
+            badge: t("assistant.couldNotComplete"),
+            tone: "error",
+            text: queryResult.message,
+            timestamp: t("common.justNow"),
+          });
+        }
+        return;
+      }
       pushFeed({
         id: nextId("answer"),
         kind: "assistant-note",
         badge: t("assistant.recorded"),
         tone: "answer",
-        text: result.data.message,
+        text: queryResult.data.message,
         timestamp: t("common.justNow"),
-        queryType: result.data.query_type,
-        result: result.data.result,
+        queryType: queryResult.data.query_type,
+        result: queryResult.data.result,
       });
     } finally {
       busyRef.current = false;
@@ -226,7 +449,7 @@ export function AssistantWorkspace() {
   const handleChatSubmit = (e?: FormEvent) => {
     if (e) e.preventDefault();
     const rawVal = inputRef.current ? inputRef.current.value : inputText;
-    void submitQuery(rawVal || inputText);
+    void submitText(rawVal || inputText);
   };
 
   const handleClarificationOption = (option: string) => {
@@ -371,6 +594,7 @@ export function AssistantWorkspace() {
     if ("error" in built) {
       setFormError(built.error);
       setPendingEvent(null);
+      setPendingClarification(null);
       return;
     }
     setFormError(null);
@@ -651,7 +875,7 @@ export function AssistantWorkspace() {
               <button
                 key={pill}
                 type="button"
-                onClick={() => void submitQuery(pill)}
+                onClick={() => void submitText(pill)}
                 disabled={busy}
                 className="whitespace-nowrap rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-muted hover:text-foreground hover:border-accent/50 hover:bg-surface-strong transition-all shrink-0 cursor-pointer font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -762,6 +986,7 @@ export function AssistantWorkspace() {
                 </p>
                 <div className="rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground">
                   {pendingEvent.summary}
+                  <p className="mt-2 text-sm text-muted">Record this?</p>
                   {manualDate ? (
                     <span className="mt-1 block text-xs text-muted">
                       {t("manualModal.dateLabel", { date: manualDate })}
@@ -783,7 +1008,9 @@ export function AssistantWorkspace() {
                     disabled={manualSubmitting}
                     className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
                   >
-                    {t("manualModal.edit")}
+                    {pendingEvent.source === "text"
+                      ? t("common.cancel")
+                      : t("manualModal.edit")}
                   </button>
                   <button
                     type="button"

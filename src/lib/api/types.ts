@@ -21,6 +21,24 @@ export type QueryRequest = {
   query: string;
 };
 
+export type InterpretationEventData = Record<string, string | number | null>;
+
+export type InterpretationResult =
+  | {
+      type: "create_event";
+      event_type: EventType;
+      data: InterpretationEventData;
+    }
+  | {
+      type: "query";
+      query: string;
+    }
+  | {
+      type: "clarification";
+      question: string;
+      missing_fields: string[];
+    };
+
 export type EventRecord = {
   id: string;
   event_type: string;

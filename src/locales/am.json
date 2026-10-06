@@ -142,7 +142,8 @@
     "tapToSpeak": "ለመናገር ይጫኑ",
     "needsInput": "ግቤት ያስፈልጋል",
     "couldNotComplete": "ማጠናቀቅ አልተቻለም",
-    "recorded": "ተመዝግቧል"
+    "recorded": "ተመዝግቧል",
+    "engineIncompleteError": "የ AI ሞተሩ ያልተሟላ የክስተት መረጃ መዝግቧል።"
   },
   "cards": {
     "saleRecorded": "ሽያጭ ተመዝግቧል",

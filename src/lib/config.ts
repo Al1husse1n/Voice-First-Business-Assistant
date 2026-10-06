@@ -13,3 +13,11 @@ export function getApiBaseUrl(): string | undefined {
   }
   return value.replace(/\/$/, "");
 }
+
+export function getAiEngineUrl(): string | undefined {
+  const value = process.env.NEXT_PUBLIC_AI_ENGINE_URL?.trim();
+  if (!value) {
+    return undefined;
+  }
+  return value.replace(/\/$/, "");
+}
