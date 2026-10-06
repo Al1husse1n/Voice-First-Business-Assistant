@@ -6,8 +6,10 @@ import { VoiceOrb } from "./voice-orb";
 import { SaleExpenseCard, ClarificationCard } from "./structured-cards";
 import { createEvent, healthCheck, queryBusiness } from "@/lib/api/client";
 import type { CreateEventRequest, EventType } from "@/lib/api/types";
-import { DEFAULT_LANGUAGE, MVP_BUSINESS_ID } from "@/lib/config";
+import { MVP_BUSINESS_ID } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useTranslation } from "@/lib/i18n";
 
 export type FeedItem =
   | {
@@ -42,13 +44,6 @@ export type FeedItem =
       timestamp: string;
     };
 
-const SUGGESTIONS = [
-  "How much did I sell today?",
-  "How much did I spend this week?",
-  "How many shirts do I have?",
-  "Who owes me money?",
-] as const;
-
 const INPUT_CLASS =
   "w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent";
 
@@ -63,10 +58,14 @@ function nextId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function positiveNumber(value: string, label: string): number | string {
+function positiveNumber(
+  value: string,
+  label: string,
+  customError?: string,
+): number | string {
   const parsed = Number(value);
   if (!value.trim() || !Number.isFinite(parsed) || parsed <= 0) {
-    return `${label} must be greater than zero.`;
+    return customError || `${label} must be greater than zero.`;
   }
   return parsed;
 }
@@ -83,6 +82,7 @@ function withSelectedDate(
 }
 
 export function AssistantWorkspace() {
+  const { t, locale } = useTranslation();
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [inputText, setInputText] = useState("");
   const [isListening, setIsListening] = useState(false);
@@ -173,7 +173,7 @@ export function AssistantWorkspace() {
       id: nextId("user"),
       kind: "user",
       text: trimmed,
-      timestamp: "Just now",
+      timestamp: t("common.justNow"),
     });
     setInputText("");
     if (inputRef.current) {
@@ -183,7 +183,7 @@ export function AssistantWorkspace() {
     try {
       const result = await queryBusiness({
         business_id: MVP_BUSINESS_ID,
-        language: DEFAULT_LANGUAGE,
+        language: locale,
         query: trimmed,
       });
       if (!result.ok) {
@@ -193,16 +193,16 @@ export function AssistantWorkspace() {
             kind: "assistant-clarification",
             question: result.message,
             options: result.missing_fields ?? [],
-            timestamp: "Needs input",
+            timestamp: t("assistant.needsInput"),
           });
         } else {
           pushFeed({
             id: nextId("error"),
             kind: "assistant-note",
-            badge: "Could not complete",
+            badge: t("assistant.couldNotComplete"),
             tone: "error",
             text: result.message,
-            timestamp: "Just now",
+            timestamp: t("common.justNow"),
           });
         }
         return;
@@ -210,10 +210,10 @@ export function AssistantWorkspace() {
       pushFeed({
         id: nextId("answer"),
         kind: "assistant-note",
-        badge: "Answer",
+        badge: t("assistant.recorded"),
         tone: "answer",
         text: result.data.message,
-        timestamp: "Just now",
+        timestamp: t("common.justNow"),
         queryType: result.data.query_type,
         result: result.data.result,
       });
@@ -243,10 +243,10 @@ export function AssistantWorkspace() {
 
     if (manualEventType === "sale" || manualEventType === "purchase") {
       const item = manualItem.trim();
-      if (!item) return { error: "Enter the item name." };
-      const quantity = positiveNumber(manualQuantity, "Quantity");
+      if (!item) return { error: t("validation.enterItem") };
+      const quantity = positiveNumber(manualQuantity, "Quantity", t("validation.enterQuantity"));
       if (typeof quantity === "string") return { error: quantity };
-      const amount = positiveNumber(manualAmount, "Amount");
+      const amount = positiveNumber(manualAmount, "Amount", t("validation.enterAmount"));
       if (typeof amount === "string") return { error: amount };
       data.item = item;
       data.quantity = quantity;
@@ -258,12 +258,12 @@ export function AssistantWorkspace() {
         return {
           request: {
             business_id: MVP_BUSINESS_ID,
-            language: DEFAULT_LANGUAGE,
+            language: locale,
             event_type: "sale",
             data,
           },
-          summary: `Sale: ${quantity} ${item} · ETB ${amount}`,
-          headline: `${quantity} ${item} · ETB ${amount}`,
+          summary: t("cards.saleSummary", { quantity, item, amount }),
+          headline: t("cards.saleHeadline", { quantity, item, amount }),
           card: "sale",
         };
       }
@@ -272,20 +272,20 @@ export function AssistantWorkspace() {
       return {
         request: {
           business_id: MVP_BUSINESS_ID,
-          language: DEFAULT_LANGUAGE,
+          language: locale,
           event_type: "purchase",
           data,
         },
-        summary: `Purchase: ${quantity} ${item} · ETB ${amount}`,
-        headline: `${quantity} ${item} · ETB ${amount}`,
+        summary: t("cards.purchaseSummary", { quantity, item, amount }),
+        headline: t("cards.purchaseHeadline", { quantity, item, amount }),
         card: "note",
       };
     }
 
     if (manualEventType === "expense") {
       const description = manualDescription.trim();
-      if (!description) return { error: "Enter an expense description." };
-      const amount = positiveNumber(manualAmount, "Amount");
+      if (!description) return { error: t("validation.enterExpenseDesc") };
+      const amount = positiveNumber(manualAmount, "Amount", t("validation.enterAmount"));
       if (typeof amount === "string") return { error: amount };
       data.description = description;
       data.amount = amount;
@@ -295,26 +295,25 @@ export function AssistantWorkspace() {
       return {
         request: {
           business_id: MVP_BUSINESS_ID,
-          language: DEFAULT_LANGUAGE,
+          language: locale,
           event_type: "expense",
           data,
         },
-        summary: `Expense: ${description} · ETB ${amount}`,
-        headline: `${description} · ETB ${amount}`,
+        summary: t("cards.expenseSummary", { description, amount }),
+        headline: t("cards.expenseHeadline", { description, amount }),
         card: "expense",
       };
     }
 
     if (manualEventType === "inventory_adjustment") {
       const item = manualItem.trim();
-      if (!item) return { error: "Enter the item name." };
+      if (!item) return { error: t("validation.enterItem") };
       const reason = manualReason.trim();
-      if (!reason) return { error: "Enter a reason for the adjustment." };
+      if (!reason) return { error: t("validation.enterReason") };
       const quantity = Number(manualQuantity);
       if (!manualQuantity.trim() || !Number.isFinite(quantity) || quantity === 0) {
         return {
-          error:
-            "Quantity must be a non-zero number. Use a negative number to decrease stock.",
+          error: t("validation.enterAdjustmentQuantity"),
         };
       }
       data.item = item;
@@ -323,42 +322,45 @@ export function AssistantWorkspace() {
       return {
         request: {
           business_id: MVP_BUSINESS_ID,
-          language: DEFAULT_LANGUAGE,
+          language: locale,
           event_type: "inventory_adjustment",
           data,
         },
-        summary: `Inventory adjustment: ${quantity} ${item} · ${reason}`,
-        headline: `${quantity} ${item}`,
+        summary: t("cards.inventorySummary", { quantity, item, reason }),
+        headline: t("cards.inventoryHeadline", { quantity, item }),
         card: "note",
       };
     }
 
     const customer = manualCustomer.trim();
-    if (!customer) return { error: "Enter the customer's name." };
-    const amount = positiveNumber(manualAmount, "Amount");
+    if (!customer) return { error: t("validation.enterCustomer") };
+    const amount = positiveNumber(manualAmount, "Amount", t("validation.enterAmount"));
     if (typeof amount === "string") return { error: amount };
     if (
       manualDirection !== "owed_to_business" &&
       manualDirection !== "owed_by_business"
     ) {
       return {
-        error:
-          "Choose whether the customer owes the business or the business owes the customer.",
+        error: t("validation.chooseDebtDirection"),
       };
     }
     data.customer = customer;
     data.amount = amount;
     data.currency = "ETB";
     data.direction = manualDirection;
+    const directionLabel =
+      manualDirection === "owed_to_business"
+        ? t("cards.debtDirectionOwedToBusiness")
+        : t("cards.debtDirectionOwedByBusiness");
     return {
       request: {
         business_id: MVP_BUSINESS_ID,
-        language: DEFAULT_LANGUAGE,
+        language: locale,
         event_type: "customer_debt",
         data,
       },
-      summary: `Customer debt: ${customer} · ETB ${amount} · ${manualDirection}`,
-      headline: `${customer} · ETB ${amount}`,
+      summary: t("cards.debtSummary", { customer, amount, direction: directionLabel }),
+      headline: t("cards.debtHeadline", { customer, amount }),
       card: "note",
     };
   }
@@ -390,7 +392,7 @@ export function AssistantWorkspace() {
             kind: "assistant-clarification",
             question: result.message,
             options: result.missing_fields ?? [],
-            timestamp: "Needs input",
+            timestamp: t("assistant.needsInput"),
           });
         }
         return;
@@ -400,10 +402,10 @@ export function AssistantWorkspace() {
         pushFeed({
           id: nextId("event"),
           kind: "assistant-note",
-          badge: "Recorded",
+          badge: t("assistant.recorded"),
           tone: "answer",
           text: result.data.message,
-          timestamp: "Just now",
+          timestamp: t("common.justNow"),
         });
       } else {
         pushFeed({
@@ -412,7 +414,7 @@ export function AssistantWorkspace() {
           type: pendingEvent.card,
           headline: pendingEvent.headline,
           subtitle: result.data.message,
-          timestamp: "Just now",
+          timestamp: t("common.justNow"),
         });
       }
       setPendingEvent(null);
@@ -428,7 +430,7 @@ export function AssistantWorkspace() {
       setManualDirection("owed_to_business");
       setManualDate("");
     } catch {
-      setFormError("Unable to connect to the business service. Please try again.");
+      setFormError(t("validation.connectError"));
     } finally {
       busyRef.current = false;
       setManualSubmitting(false);
@@ -453,7 +455,7 @@ export function AssistantWorkspace() {
             <Link
               href="/"
               className="inline-flex items-center gap-2 text-muted hover:text-foreground transition-colors"
-              aria-label="Back to home"
+              aria-label={t("assistant.backToHome")}
             >
               <svg
                 className="w-4 h-4"
@@ -470,16 +472,16 @@ export function AssistantWorkspace() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <div
               className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted"
               aria-live="polite"
               title={
                 backendStatus === "ok"
-                  ? "Connected"
+                  ? t("assistant.connected")
                   : backendStatus === "checking"
-                  ? "Checking…"
-                  : "Can't reach the backend. Voice and recording may not work."
+                  ? t("assistant.checking")
+                  : t("assistant.offlineTitle")
               }
             >
               <span
@@ -494,10 +496,10 @@ export function AssistantWorkspace() {
               />
               <span className="font-inter text-[11px] sm:text-xs">
                 {backendStatus === "ok"
-                  ? "Connected"
+                  ? t("assistant.connected")
                   : backendStatus === "checking"
-                  ? "Checking…"
-                  : "Unavailable"}
+                  ? t("assistant.checking")
+                  : t("assistant.unavailable")}
               </span>
             </div>
 
@@ -509,9 +511,10 @@ export function AssistantWorkspace() {
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span>Record manually</span>
+              <span>{t("assistant.recordManually")}</span>
             </button>
 
+            <LanguageSwitcher />
             <ThemeToggle />
           </div>
         </div>
@@ -527,10 +530,10 @@ export function AssistantWorkspace() {
             }}
             sublabel={
               querying
-                ? "Checking your business…"
+                ? t("assistant.checkingBusiness")
                 : manualSubmitting
-                  ? "Sending this record…"
-                  : "Tap to speak or type below"
+                  ? t("assistant.sendingRecord")
+                  : t("assistant.tapToSpeakOrType")
             }
           />
         </div>
@@ -543,7 +546,7 @@ export function AssistantWorkspace() {
         >
           {feedItems.length === 0 && !querying && (
             <p className="py-8 text-center text-sm font-inter text-muted">
-              Ask a question about your business.
+              {t("assistant.emptyFeed")}
             </p>
           )}
           {feedItems.map((item) => {
@@ -619,8 +622,12 @@ export function AssistantWorkspace() {
           {querying && (
             <div className="flex flex-col gap-2 max-w-[95%] sm:max-w-[85%] animate-enter-up">
               <div className="assistant-card w-full" role="status">
-                <span className="assistant-card-badge badge-inventory">Checking</span>
-                <p className="mt-2 text-sm font-inter text-muted">Checking your business…</p>
+                <span className="assistant-card-badge badge-inventory">
+                  {t("assistant.checkingStatus")}
+                </span>
+                <p className="mt-2 text-sm font-inter text-muted">
+                  {t("assistant.checkingBusiness")}
+                </p>
               </div>
             </div>
           )}
@@ -630,12 +637,17 @@ export function AssistantWorkspace() {
           <div
             id="suggestion-pills"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"
-            aria-label="Query suggestions"
+            aria-label={t("assistant.querySuggestions")}
           >
             <span className="text-xs font-inter text-muted shrink-0 font-medium select-none pl-1">
-              Try asking:
+              {t("assistant.tryAsking")}
             </span>
-            {SUGGESTIONS.map((pill) => (
+            {[
+              t("assistant.suggestions.todaySales"),
+              t("assistant.suggestions.weekExpenses"),
+              t("assistant.suggestions.shirtsCount"),
+              t("assistant.suggestions.whoOwes"),
+            ].map((pill) => (
               <button
                 key={pill}
                 type="button"
@@ -663,7 +675,7 @@ export function AssistantWorkspace() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ask a question about your business..."
+              placeholder={t("assistant.inputPlaceholder")}
               disabled={busy}
               className="flex-1 bg-transparent text-sm sm:text-base text-foreground placeholder-faint font-inter disabled:opacity-60"
               style={{
@@ -679,7 +691,7 @@ export function AssistantWorkspace() {
               id="send-button"
               type="submit"
               disabled={!hasInputText || busy}
-              aria-label={querying ? "Checking your business" : "Send message"}
+              aria-label={querying ? t("assistant.checkingBusiness") : t("assistant.sendMessage")}
               className={`flex shrink-0 items-center justify-center rounded-full w-9 h-9 sm:w-10 sm:h-10 transition-all duration-200 ${
                 hasInputText && !busy
                   ? "bg-accent text-white shadow-[0_0_14px_rgba(254,105,4,0.45)] hover:opacity-90 cursor-pointer active:scale-95"
@@ -708,7 +720,7 @@ export function AssistantWorkspace() {
               onClick={() => setIsManualModalOpen(true)}
               className="text-[11px] font-inter text-muted hover:text-foreground underline underline-offset-2 cursor-pointer"
             >
-              Record manually
+              {t("assistant.recordManually")}
             </button>
           </div>
         </div>
@@ -725,17 +737,17 @@ export function AssistantWorkspace() {
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-accent">
-                  Manual Recording
+                  {t("manualModal.badge")}
                 </span>
                 <h3 id="manual-title" className="font-space text-lg font-bold text-foreground mt-0.5">
-                  Record what happened
+                  {t("manualModal.title")}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={closeManual}
                 className="rounded-full p-1.5 text-muted hover:text-foreground hover:bg-surface-strong transition-colors"
-                aria-label="Close modal"
+                aria-label={t("manualModal.close")}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -746,12 +758,14 @@ export function AssistantWorkspace() {
             {pendingEvent ? (
               <div className="space-y-4 font-inter text-sm">
                 <p className="text-sm text-muted">
-                  Review this event before it is sent to the business service.
+                  {t("manualModal.reviewIntro")}
                 </p>
                 <div className="rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground">
                   {pendingEvent.summary}
                   {manualDate ? (
-                    <span className="mt-1 block text-xs text-muted">Date: {manualDate}</span>
+                    <span className="mt-1 block text-xs text-muted">
+                      {t("manualModal.dateLabel", { date: manualDate })}
+                    </span>
                   ) : null}
                 </div>
                 {formError ? (
@@ -769,7 +783,7 @@ export function AssistantWorkspace() {
                     disabled={manualSubmitting}
                     className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
                   >
-                    Edit
+                    {t("manualModal.edit")}
                   </button>
                   <button
                     type="button"
@@ -777,7 +791,7 @@ export function AssistantWorkspace() {
                     disabled={manualSubmitting}
                     className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors disabled:opacity-50"
                   >
-                    {manualSubmitting ? "Recording…" : "Confirm Record"}
+                    {manualSubmitting ? t("manualModal.recordingInProgress") : t("manualModal.confirmRecord")}
                   </button>
                 </div>
               </div>
@@ -785,7 +799,7 @@ export function AssistantWorkspace() {
               <form onSubmit={handleReview} className="space-y-4 font-inter text-sm">
                 <div>
                   <label className="block text-xs text-muted mb-1.5" htmlFor="manual-event-type">
-                    Event type
+                    {t("manualModal.eventType")}
                   </label>
                   <select
                     id="manual-event-type"
@@ -796,11 +810,11 @@ export function AssistantWorkspace() {
                     }}
                     className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
                   >
-                    <option value="sale">Sale</option>
-                    <option value="expense">Expense</option>
-                    <option value="purchase">Purchase</option>
-                    <option value="inventory_adjustment">Inventory adjustment</option>
-                    <option value="customer_debt">Customer debt</option>
+                    <option value="sale">{t("manualModal.types.sale")}</option>
+                    <option value="expense">{t("manualModal.types.expense")}</option>
+                    <option value="purchase">{t("manualModal.types.purchase")}</option>
+                    <option value="inventory_adjustment">{t("manualModal.types.inventory_adjustment")}</option>
+                    <option value="customer_debt">{t("manualModal.types.customer_debt")}</option>
                   </select>
                 </div>
 
@@ -808,20 +822,20 @@ export function AssistantWorkspace() {
                   <>
                     <div>
                       <label className="block text-xs text-muted mb-1.5" htmlFor="manual-desc">
-                        Description
+                        {t("manualModal.description")}
                       </label>
                       <input
                         id="manual-desc"
                         type="text"
                         value={manualDescription}
                         onChange={(e) => setManualDescription(e.target.value)}
-                        placeholder="e.g. Transport, electricity"
+                        placeholder={t("manualModal.descriptionPlaceholder")}
                         className={INPUT_CLASS}
                       />
                     </div>
                     <div>
                       <label className="block text-xs text-muted mb-1.5" htmlFor="manual-category">
-                        Category (optional)
+                        {t("manualModal.category")}
                       </label>
                       <input
                         id="manual-category"
@@ -840,27 +854,31 @@ export function AssistantWorkspace() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-muted mb-1.5" htmlFor="manual-item">
-                        Item
+                        {t("manualModal.item")}
                       </label>
                       <input
                         id="manual-item"
                         type="text"
                         value={manualItem}
                         onChange={(e) => setManualItem(e.target.value)}
-                        placeholder="e.g. Shirts"
+                        placeholder={t("manualModal.itemPlaceholder")}
                         className={INPUT_CLASS}
                       />
                     </div>
                     <div>
                       <label className="block text-xs text-muted mb-1.5" htmlFor="manual-quantity">
-                        Quantity
+                        {t("manualModal.quantity")}
                       </label>
                       <input
                         id="manual-quantity"
                         type="number"
                         value={manualQuantity}
                         onChange={(e) => setManualQuantity(e.target.value)}
-                        placeholder={manualEventType === "inventory_adjustment" ? "e.g. -2" : "e.g. 3"}
+                        placeholder={
+                          manualEventType === "inventory_adjustment"
+                            ? t("manualModal.quantityPlaceholderAdj")
+                            : t("manualModal.quantityPlaceholderSale")
+                        }
                         className={INPUT_CLASS}
                       />
                     </div>
@@ -870,14 +888,14 @@ export function AssistantWorkspace() {
                 {manualEventType !== "inventory_adjustment" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-amount">
-                      Amount (ETB)
+                      {t("manualModal.amount")}
                     </label>
                     <input
                       id="manual-amount"
                       type="number"
                       value={manualAmount}
                       onChange={(e) => setManualAmount(e.target.value)}
-                      placeholder="e.g. 900"
+                      placeholder={t("manualModal.amountPlaceholder")}
                       className={INPUT_CLASS}
                     />
                   </div>
@@ -886,14 +904,14 @@ export function AssistantWorkspace() {
                 {manualEventType === "sale" || manualEventType === "customer_debt" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-customer">
-                      {manualEventType === "sale" ? "Customer (optional)" : "Customer"}
+                      {manualEventType === "sale" ? t("manualModal.customerOptional") : t("manualModal.customer")}
                     </label>
                     <input
                       id="manual-customer"
                       type="text"
                       value={manualCustomer}
                       onChange={(e) => setManualCustomer(e.target.value)}
-                      placeholder="e.g. Hana"
+                      placeholder={t("manualModal.customerPlaceholder")}
                       className={INPUT_CLASS}
                     />
                   </div>
@@ -902,7 +920,7 @@ export function AssistantWorkspace() {
                 {manualEventType === "purchase" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-supplier">
-                      Supplier (optional)
+                      {t("manualModal.supplier")}
                     </label>
                     <input
                       id="manual-supplier"
@@ -917,14 +935,14 @@ export function AssistantWorkspace() {
                 {manualEventType === "inventory_adjustment" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-reason">
-                      Reason
+                      {t("manualModal.reason")}
                     </label>
                     <input
                       id="manual-reason"
                       type="text"
                       value={manualReason}
                       onChange={(e) => setManualReason(e.target.value)}
-                      placeholder="e.g. damaged"
+                      placeholder={t("manualModal.reasonPlaceholder")}
                       className={INPUT_CLASS}
                     />
                   </div>
@@ -933,7 +951,7 @@ export function AssistantWorkspace() {
                 {manualEventType === "customer_debt" ? (
                   <div>
                     <label className="block text-xs text-muted mb-1.5" htmlFor="manual-direction">
-                      Debt direction
+                      {t("manualModal.debtDirection")}
                     </label>
                     <select
                       id="manual-direction"
@@ -941,15 +959,15 @@ export function AssistantWorkspace() {
                       onChange={(e) => setManualDirection(e.target.value)}
                       className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
                     >
-                      <option value="owed_to_business">Customer owes the business</option>
-                      <option value="owed_by_business">Business owes the customer</option>
+                      <option value="owed_to_business">{t("cards.debtDirectionOwedToBusiness")}</option>
+                      <option value="owed_by_business">{t("cards.debtDirectionOwedByBusiness")}</option>
                     </select>
                   </div>
                 ) : null}
 
                 <div>
                   <label className="block text-xs text-muted mb-1.5" htmlFor="manual-date">
-                    Date (optional)
+                    {t("manualModal.date")}
                   </label>
                   <input
                     id="manual-date"
@@ -972,13 +990,13 @@ export function AssistantWorkspace() {
                     onClick={closeManual}
                     className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
                   >
-                    Cancel
+                    {t("manualModal.cancel")}
                   </button>
                   <button
                     type="submit"
                     className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors"
                   >
-                    Review
+                    {t("manualModal.review")}
                   </button>
                 </div>
               </form>
