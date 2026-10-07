@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function AssistantPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground transition-colors duration-200">
+    <main className="h-[100dvh] max-h-[100dvh] overflow-hidden bg-background text-foreground transition-colors duration-200 assistant-viewport-shell">
       <AssistantWorkspace />
     </main>
   );

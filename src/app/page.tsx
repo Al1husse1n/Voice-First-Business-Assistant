@@ -7,6 +7,7 @@ import { CtaSection } from "@/components/landing/cta-section";
 import { Footer } from "@/components/landing/footer";
 import { SignalField } from "@/components/landing/signal-field";
 import { BusinessTicker } from "@/components/landing/business-ticker";
+import { AuthenticatedBottomNav } from "@/components/navigation/authenticated-bottom-nav";
 
 export const metadata: Metadata = {
   title: "Meri — Run your business by voice",
@@ -29,6 +30,7 @@ export default function Home() {
         <CtaSection />
       </main>
       <Footer />
+      <AuthenticatedBottomNav />
     </div>
   );
 }

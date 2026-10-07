@@ -51,6 +51,12 @@
 
   /* Outline Experiment Token */
   --outline-accent: #FE6904;
+
+  /* Safe Area Insets */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 :root[data-theme="light"],
@@ -168,12 +174,19 @@ h6 {
   font-family: var(--font-space), ui-sans-serif, system-ui, sans-serif;
 }
 
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
 button,
 a,
 input,
 textarea,
-select {
-  -webkit-tap-highlight-color: transparent;
+select,
+[role="button"] {
+  touch-action: manipulation;
 }
 
 button:focus-visible,
@@ -269,6 +282,20 @@ summary::-webkit-details-marker {
   font-family: 'Inter', var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Mobile Safe Area and Viewport Shell Utilities */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.assistant-viewport-shell {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Voice Orb Glowing Breathing Circle (3–6s pulse) */
 @keyframes orb-breathe {
   0%, 100% {
@@ -341,7 +368,13 @@ summary::-webkit-details-marker {
 }
 
 .business-ticker-track {
-  animation: business-marquee 34s linear infinite;
+  animation: business-marquee 28s linear infinite;
+}
+
+@media (min-width: 640px) {
+  .business-ticker-track {
+    animation-duration: 34s;
+  }
 }
 
 .business-ticker-sequence {
@@ -391,8 +424,17 @@ summary::-webkit-details-marker {
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 1.125rem 1.25rem;
+  padding: 0.875rem 1rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .assistant-card {
+    padding: 1.125rem 1.25rem;
+  }
 }
 
 .assistant-card:hover {
@@ -465,6 +507,8 @@ summary::-webkit-details-marker {
   line-height: 1.25;
   color: var(--foreground);
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (min-width: 640px) {
@@ -542,8 +586,14 @@ summary::-webkit-details-marker {
   border-radius: 9999px !important;
   background-color: var(--surface) !important;
   border: 1px solid var(--border) !important;
-  padding: 6px 8px 6px 18px !important;
+  padding: 4px 6px 4px 14px !important;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+}
+
+@media (min-width: 640px) {
+  #chat-form {
+    padding: 6px 8px 6px 18px !important;
+  }
 }
 
 #chat-form:focus-within {

@@ -48,14 +48,14 @@ export function VoiceOrb({
   return (
     <div
       id="voice-orb-container"
-      className="flex flex-col items-center justify-center py-4 sm:py-6 select-none transition-all duration-300"
+      className="flex flex-col items-center justify-center py-2.5 sm:py-6 select-none transition-all duration-300"
     >
       {/* Outer interactive button wrapping the breathing orb visual */}
       <button
         type="button"
         onClick={handleClick}
         aria-label={active ? "Stop speaking" : "Tap to speak"}
-        className="relative group focus:outline-none cursor-pointer rounded-full"
+        className="relative group focus:outline-none cursor-pointer rounded-full active:scale-95 transition-transform duration-200"
       >
         {/* Soft Ambient Radial Glow - Persistent warm orange aura (§13–§15) */}
         <div
@@ -110,7 +110,7 @@ export function VoiceOrb({
                 ) : (
                   /* Idle microphone glyph */
                   <svg
-                    className="w-6 h-6 text-muted dark:text-muted transition-colors duration-200 group-hover:text-[#FE6904]"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-muted dark:text-muted transition-colors duration-200 group-hover:text-[#FE6904]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -131,7 +131,7 @@ export function VoiceOrb({
       </button>
 
       {/* Sublabel (§18 & §29) */}
-      <span className="mt-3 text-xs sm:text-sm font-inter text-muted text-center tracking-normal">
+      <span className="mt-2 sm:mt-3 text-xs sm:text-sm font-inter text-muted text-center tracking-normal">
         {active ? "Listening… speak to Meri" : sublabel}
       </span>
     </div>
