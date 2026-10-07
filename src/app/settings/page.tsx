@@ -76,7 +76,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Section 1: Profile & Session */}
-        <section className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6 space-y-4">
+        <section id="profile" className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6 space-y-4 scroll-mt-20">
           <div>
             <h2 className="font-display font-medium text-lg text-foreground flex items-center gap-2">
               <svg
