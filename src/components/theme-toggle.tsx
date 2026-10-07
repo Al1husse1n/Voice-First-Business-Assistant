@@ -54,7 +54,7 @@ export function ThemeToggle({ className = "" }: ThemeToggleProps) {
       id="theme-toggle"
       type="button"
       onClick={toggleTheme}
-      className={`relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors duration-200 hover:border-border-strong cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`}
+      className={`relative inline-flex min-w-[44px] min-h-[44px] size-11 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-all duration-200 hover:border-border-strong active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`}
       aria-label={label}
       title={label}
     >

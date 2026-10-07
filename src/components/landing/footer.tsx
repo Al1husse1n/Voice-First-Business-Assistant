@@ -4,7 +4,7 @@ import { MeriLogo } from "@/components/landing/meri-logo";
 export function Footer() {
   return (
     <footer className="w-full border-t border-border bg-surface-subtle text-foreground transition-colors duration-200">
-      <div className="mx-auto max-w-[1240px] px-4 py-12 sm:px-8 sm:py-16">
+      <div className="mx-auto max-w-[1240px] px-4 py-12 sm:px-8 sm:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           {/* Brand & Core Message */}
           <div className="max-w-sm">

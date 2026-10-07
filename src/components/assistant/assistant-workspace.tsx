@@ -18,6 +18,8 @@ import type {
 import { DEFAULT_LANGUAGE, MVP_BUSINESS_ID } from "@/lib/config";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth/auth-context";
+import { MeriLogo } from "@/components/landing/meri-logo";
+import { AuthenticatedBottomNav } from "@/components/navigation/authenticated-bottom-nav";
 
 export type FeedItem =
   | {
@@ -60,7 +62,7 @@ const SUGGESTIONS = [
 ] as const;
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2 text-foreground outline-none focus:border-accent";
+  "w-full min-h-[44px] rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-base sm:text-sm text-foreground outline-none focus:border-accent transition-colors";
 
 type PendingEvent = {
   request: CreateEventRequest;
@@ -255,9 +257,23 @@ export function AssistantWorkspace() {
   const [manualDirection, setManualDirection] = useState("owed_to_business");
   const [manualDate, setManualDate] = useState("");
 
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
   const feedRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const handleResize = () => {
+      const isKeyboard = window.innerHeight - vv.height > 150;
+      setIsKeyboardOpen(isKeyboard);
+    };
+    vv.addEventListener("resize", handleResize);
+    return () => vv.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -295,7 +311,10 @@ export function AssistantWorkspace() {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 50);
+    return () => clearTimeout(timer);
   }, [feedItems, querying]);
 
   useEffect(() => {
@@ -324,6 +343,9 @@ export function AssistantWorkspace() {
       kind: "user",
       text: trimmed,
       timestamp: "Just now",
+    });
+    requestAnimationFrame(() => {
+      scrollToBottom();
     });
     setInputText("");
     if (inputRef.current) {
@@ -669,17 +691,17 @@ export function AssistantWorkspace() {
   const busy = querying || manualSubmitting;
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-background text-foreground transition-colors duration-200 selection:bg-accent/30">
-      <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-background/90 backdrop-blur-md transition-colors duration-200">
-        <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+    <div className="flex flex-col h-[100dvh] max-h-[100dvh] bg-background text-foreground transition-colors duration-200 selection:bg-accent/30 overflow-hidden overscroll-none assistant-viewport-shell">
+      <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-background pt-[env(safe-area-inset-top,0px)] transition-colors duration-200">
+        <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between px-3 sm:px-6">
+          <div className="flex items-center gap-2">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 text-muted hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 text-muted hover:text-foreground transition-colors p-1 -ml-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               aria-label="Back to home"
             >
               <svg
-                className="w-4 h-4"
+                className="w-4 h-4 shrink-0"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -687,15 +709,14 @@ export function AssistantWorkspace() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-              <span className="font-space text-lg font-bold text-foreground tracking-tight">
-                Meri
-              </span>
+              <MeriLogo compact={false} />
             </Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Backend status indicator light */}
             <div
-              className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted"
+              className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1.5 text-xs text-muted"
               aria-live="polite"
               title={
                 backendStatus === "ok"
@@ -706,7 +727,7 @@ export function AssistantWorkspace() {
               }
             >
               <span
-                className={`h-1.5 w-1.5 rounded-full ${
+                className={`h-2 w-2 rounded-full ${
                   backendStatus === "ok"
                     ? "bg-[#16A34A]"
                     : backendStatus === "checking"
@@ -715,24 +736,33 @@ export function AssistantWorkspace() {
                 }`}
                 aria-hidden="true"
               />
-              <span className="font-inter text-[11px] sm:text-xs">
+              <span className="font-inter text-[11px] sm:text-xs hidden md:inline">
                 {backendStatus === "ok"
                   ? "Connected"
                   : backendStatus === "checking"
                   ? "Checking…"
-                  : "Unavailable"}
+                  : "Offline"}
               </span>
             </div>
 
+            {/* Tactile '+' button for Record manually */}
             <button
               type="button"
               onClick={() => setIsManualModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-inter text-muted hover:text-foreground rounded-full border border-border hover:border-border-strong bg-surface px-3 py-1 transition-colors cursor-pointer"
+              aria-label="Record manually"
+              title="Record manually"
+              className="inline-flex min-w-[44px] min-h-[44px] size-11 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-all duration-200 hover:border-border-strong hover:text-accent active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="size-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              <span>Record manually</span>
             </button>
 
             <ThemeToggle />
@@ -780,7 +810,8 @@ export function AssistantWorkspace() {
         <div
           id="assistant-feed"
           ref={feedRef}
-          className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 custom-scrollbar"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4 custom-scrollbar"
+          style={{ WebkitOverflowScrolling: "touch" }}
           aria-live="polite"
         >
           {feedItems.length === 0 && !querying && (
@@ -822,17 +853,17 @@ export function AssistantWorkspace() {
                   className="flex flex-col gap-2 max-w-[95%] sm:max-w-[85%] animate-enter-up"
                 >
                   <div className="assistant-card w-full">
-                    <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-2">
                       <span
-                        className={`assistant-card-badge ${
+                        className={`assistant-card-badge shrink-0 ${
                           item.tone === "error" ? "badge-clarification" : "badge-inventory"
                         }`}
                       >
                         {item.badge}
                       </span>
-                      <span className="card-timestamp">{item.timestamp}</span>
+                      <span className="card-timestamp shrink-0">{item.timestamp}</span>
                     </div>
-                    <p className="text-sm sm:text-base text-foreground font-inter leading-relaxed">
+                    <p className="text-sm sm:text-base text-foreground font-inter leading-relaxed break-words">
                       {item.text}
                     </p>
                   </div>
@@ -859,16 +890,33 @@ export function AssistantWorkspace() {
             return null;
           })}
           {querying && (
-            <div className="flex flex-col gap-2 max-w-[95%] sm:max-w-[85%] animate-enter-up">
-              <div className="assistant-card w-full" role="status">
-                <span className="assistant-card-badge badge-inventory">Processing</span>
-                <p className="mt-2 text-sm font-inter text-muted">Processing your request…</p>
+            <div className="flex flex-col gap-2 max-w-[95%] sm:max-w-[80%] animate-enter-up" role="status">
+              <div className="assistant-card py-2.5 px-3.5 sm:py-3 sm:px-4 w-full flex items-center gap-3">
+                <div className="flex items-center gap-1 h-4 shrink-0" aria-hidden="true">
+                  <span className="w-1 bg-accent rounded-full h-2.5 animate-pulse" />
+                  <span className="w-1 bg-accent rounded-full h-4 animate-pulse delay-75" />
+                  <span className="w-1 bg-accent rounded-full h-3 animate-pulse delay-150" />
+                </div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-accent font-space">
+                    Thinking
+                  </span>
+                  <span className="text-xs text-muted font-inter truncate">
+                    Checking your business…
+                  </span>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-md px-3 sm:px-6 pt-2 pb-3 sm:pb-4 space-y-2.5 transition-colors duration-200">
+        <div
+          className={`shrink-0 border-t border-border bg-background px-3 sm:px-6 pt-2 space-y-2.5 transition-all duration-200 ${
+            isInputFocused || isKeyboardOpen
+              ? "pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))]"
+              : "pb-[calc(3.5rem+max(0.75rem,env(safe-area-inset-bottom,0.75rem)))] md:pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))]"
+          }`}
+        >
           <div
             id="suggestion-pills"
             className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"
@@ -883,7 +931,7 @@ export function AssistantWorkspace() {
                 type="button"
                 onClick={() => void submitText(pill)}
                 disabled={busy}
-                className="whitespace-nowrap rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs text-muted hover:text-foreground hover:border-accent/50 hover:bg-surface-strong transition-all shrink-0 cursor-pointer font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center whitespace-nowrap rounded-full border border-border bg-surface min-h-[44px] px-3.5 py-2 text-xs text-muted hover:text-foreground hover:border-accent/50 hover:bg-surface-strong transition-all shrink-0 cursor-pointer font-inter focus:outline-none focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-40 active:scale-95"
               >
                 {pill}
               </button>
@@ -893,11 +941,7 @@ export function AssistantWorkspace() {
           <form
             id="chat-form"
             onSubmit={handleChatSubmit}
-            className="flex items-center gap-2 rounded-full border border-border bg-surface transition-all duration-200"
-            style={{
-              borderRadius: "9999px",
-              padding: "6px 8px 6px 18px",
-            }}
+            className="flex items-center gap-1.5 sm:gap-2 rounded-full border border-border bg-surface transition-all duration-200"
           >
             <input
               id="chat-input"
@@ -905,27 +949,24 @@ export function AssistantWorkspace() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
               placeholder="Ask a question about your business..."
               disabled={busy}
-              className="flex-1 bg-transparent text-sm sm:text-base text-foreground placeholder-faint font-inter disabled:opacity-60"
-              style={{
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                boxShadow: "none",
-              }}
+              className="flex-1 min-w-0 bg-transparent text-base text-foreground placeholder-faint font-inter disabled:opacity-60 pl-2 sm:pl-3 py-2"
               autoComplete="off"
             />
 
+            {/* Circular orange send button */}
             <button
               id="send-button"
               type="submit"
               disabled={!hasInputText || busy}
               aria-label={querying ? "Checking your business" : "Send message"}
-              className={`flex shrink-0 items-center justify-center rounded-full w-9 h-9 sm:w-10 sm:h-10 transition-all duration-200 ${
+              className={`flex shrink-0 items-center justify-center rounded-full min-w-[44px] min-h-[44px] size-11 transition-all duration-200 active:scale-95 ${
                 hasInputText && !busy
-                  ? "bg-accent text-white shadow-[0_0_14px_rgba(254,105,4,0.45)] hover:opacity-90 cursor-pointer active:scale-95"
-                  : "bg-surface-strong text-faint cursor-not-allowed"
+                  ? "bg-accent text-white shadow-[0_0_14px_rgba(254,105,4,0.45)] hover:opacity-90 cursor-pointer"
+                  : "bg-surface-strong text-faint cursor-not-allowed opacity-60"
               }`}
             >
               <svg
@@ -943,27 +984,23 @@ export function AssistantWorkspace() {
               </svg>
             </button>
           </form>
-
-          <div className="flex sm:hidden justify-center pt-0.5">
-            <button
-              type="button"
-              onClick={() => setIsManualModalOpen(true)}
-              className="text-[11px] font-inter text-muted hover:text-foreground underline underline-offset-2 cursor-pointer"
-            >
-              Record manually
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Persistent Authenticated Mobile Navigation (< md) */}
+      <AuthenticatedBottomNav hidden={isInputFocused || isKeyboardOpen} />
 
       {isManualModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="manual-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-enter-up"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeManual();
+          }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4 backdrop-blur-sm animate-enter-up"
         >
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-2xl">
+          <div className="max-h-[85vh] sm:max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-border bg-surface p-4 sm:p-6 shadow-2xl pb-[max(1.5rem,env(safe-area-inset-bottom,1.5rem))]">
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-accent">
@@ -976,7 +1013,7 @@ export function AssistantWorkspace() {
               <button
                 type="button"
                 onClick={closeManual}
-                className="rounded-full p-1.5 text-muted hover:text-foreground hover:bg-surface-strong transition-colors"
+                className="inline-flex min-w-[44px] min-h-[44px] size-11 items-center justify-center rounded-full text-muted hover:text-foreground hover:bg-surface-strong transition-colors cursor-pointer active:scale-95"
                 aria-label="Close modal"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1002,7 +1039,7 @@ export function AssistantWorkspace() {
                     {formError}
                   </p>
                 ) : null}
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 sm:gap-3 pt-3 border-t border-border">
                   <button
                     type="button"
                     onClick={() => {
@@ -1010,7 +1047,7 @@ export function AssistantWorkspace() {
                       setFormError(null);
                     }}
                     disabled={manualSubmitting}
-                    className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-full border border-border px-5 py-2.5 min-h-[44px] text-xs font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50 active:scale-95 cursor-pointer"
                   >
                     {pendingEvent.source === "text" ? "Cancel" : "Edit"}
                   </button>
@@ -1018,7 +1055,7 @@ export function AssistantWorkspace() {
                     type="button"
                     onClick={() => void confirmManualEvent()}
                     disabled={manualSubmitting}
-                    className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors disabled:opacity-50"
+                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-full bg-accent hover:opacity-90 border border-border px-6 py-2.5 min-h-[44px] text-xs font-semibold text-white transition-colors disabled:opacity-50 active:scale-95 cursor-pointer shadow-sm"
                   >
                     {manualSubmitting ? "Recording…" : "Confirm Record"}
                   </button>
@@ -1037,7 +1074,7 @@ export function AssistantWorkspace() {
                       setManualEventType(e.target.value as EventType);
                       setFormError(null);
                     }}
-                    className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
+                    className="w-full min-h-[44px] rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-base sm:text-sm text-foreground outline-none focus:border-accent"
                   >
                     <option value="sale">Sale</option>
                     <option value="expense">Expense</option>
@@ -1080,7 +1117,7 @@ export function AssistantWorkspace() {
                 {manualEventType === "sale" ||
                 manualEventType === "purchase" ||
                 manualEventType === "inventory_adjustment" ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-muted mb-1.5" htmlFor="manual-item">
                         Item
@@ -1182,7 +1219,7 @@ export function AssistantWorkspace() {
                       id="manual-direction"
                       value={manualDirection}
                       onChange={(e) => setManualDirection(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-foreground outline-none focus:border-accent"
+                      className="w-full min-h-[44px] rounded-xl border border-border bg-surface-subtle px-3.5 py-2.5 text-base sm:text-sm text-foreground outline-none focus:border-accent"
                     >
                       <option value="owed_to_business">Customer owes the business</option>
                       <option value="owed_by_business">Business owes the customer</option>
@@ -1209,17 +1246,17 @@ export function AssistantWorkspace() {
                   </p>
                 ) : null}
 
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 sm:gap-3 pt-3 border-t border-border">
                   <button
                     type="button"
                     onClick={closeManual}
-                    className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted hover:text-foreground transition-colors"
+                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-full border border-border px-5 py-2.5 min-h-[44px] text-xs font-medium text-muted hover:text-foreground transition-colors active:scale-95 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="rounded-full bg-primary hover:opacity-90 border border-border px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors"
+                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-full bg-accent hover:opacity-90 border border-border px-6 py-2.5 min-h-[44px] text-xs font-semibold text-white transition-colors active:scale-95 cursor-pointer shadow-sm"
                   >
                     Review
                   </button>
