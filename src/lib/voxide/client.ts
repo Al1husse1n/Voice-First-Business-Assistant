@@ -42,7 +42,15 @@ const publicKey = process.env.NEXT_PUBLIC_VOXIDE_PUBLIC_KEY?.trim();
  */
 export const ai: VoxideClient | null = publicKey
   ? VOXIDE_ENABLED
-    ? new VoxideClient({ publicKey })
+    ? new VoxideClient({
+        publicKey,
+        ui: {
+          launcherMode: "voice-orb",
+          visualizer: "orb",
+          position: "bottom-right",
+          launcherSize: "sm",
+        },
+      })
     : null
   : null;
 

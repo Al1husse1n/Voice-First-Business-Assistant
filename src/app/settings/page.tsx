@@ -126,14 +126,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                disabled={isSigningOut}
-                className="inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center rounded-full border border-border bg-surface px-4 py-2 text-xs font-medium text-muted hover:text-red-600 dark:hover:text-red-400 hover:border-red-500/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSigningOut ? "Signing Out…" : "Sign Out"}
-              </button>
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-background/50">
@@ -247,6 +239,29 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+
+        {user ? (
+          <section className="rounded-2xl border border-border bg-surface/50 p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="font-display font-medium text-lg text-foreground">
+                  Sign out
+                </h2>
+                <p className="text-xs text-muted mt-0.5">
+                  End your current account session on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleSignOut()}
+                disabled={isSigningOut}
+                className="inline-flex min-h-[44px] sm:min-h-[38px] items-center justify-center rounded-full border border-border bg-surface px-4 py-2 text-xs font-medium text-muted hover:text-red-600 dark:hover:text-red-400 hover:border-red-500/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSigningOut ? "Signing Out…" : "Sign Out"}
+              </button>
+            </div>
+          </section>
+        ) : null}
       </main>
 
       {/* Mobile Bottom Navigation */}

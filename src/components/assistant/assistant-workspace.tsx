@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect, type FormEvent } from "react";
 import Link from "next/link";
-import { useVoxideVoice } from "@voxide/react";
 import { VoiceOrb } from "./voice-orb";
+import { AssistantVoiceControl } from "@/components/voxide/assistant-voice-control";
 import { SaleExpenseCard, ClarificationCard } from "./structured-cards";
 import {
   createEvent,
@@ -17,7 +17,6 @@ import type {
   InterpretationEventData,
 } from "@/lib/api/types";
 import { DEFAULT_LANGUAGE, MVP_BUSINESS_ID } from "@/lib/config";
-import { ai } from "@/lib/voxide/client";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MeriLogo } from "@/components/landing/meri-logo";
 import { AuthenticatedBottomNav } from "@/components/navigation/authenticated-bottom-nav";
@@ -58,7 +57,6 @@ export type FeedItem =
 const SUGGESTIONS = [
   "How much did I sell today?",
   "How much did I spend this week?",
-  "How many shirts do I have?",
   "Who owes me money?",
 ] as const;
 
@@ -284,16 +282,11 @@ export function AssistantWorkspace() {
 
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [visualViewportHeight, setVisualViewportHeight] = useState<number | null>(null);
 
   const feedRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
-
-  const {
-    status: voiceStatus,
-    connect: connectVoice,
-    disconnect: disconnectVoice,
-  } = useVoxideVoice(ai);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
@@ -303,8 +296,10 @@ export function AssistantWorkspace() {
     const handleResize = () => {
       const isKeyboard = window.innerHeight - vv.height > 150;
       setIsKeyboardOpen(isKeyboard);
+      setVisualViewportHeight(vv.height);
     };
 
+    handleResize();
     vv.addEventListener("resize", handleResize);
 
     return () => vv.removeEventListener("resize", handleResize);
@@ -829,31 +824,17 @@ export function AssistantWorkspace() {
   const busy = querying || manualSubmitting;
   const hasConversation = feedItems.length > 0;
 
-  const voiceListening =
-    voiceStatus === "connecting" || voiceStatus === "listening";
-
-  const voiceProcessing =
-    voiceStatus === "thinking" ||
-    voiceStatus === "speaking" ||
-    voiceStatus === "executing";
-
-  const handleVoiceToggle = () => {
-    if (voiceListening) {
-      disconnectVoice();
-      return;
-    }
-
-    if (voiceProcessing) return;
-
-    void connectVoice();
-  };
-
   return (
     <div
       id="assistant-shell"
       className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden overscroll-none bg-background text-foreground transition-colors duration-200 selection:bg-accent/30"
+      style={
+        isKeyboardOpen && visualViewportHeight
+          ? { height: `${visualViewportHeight}px`, maxHeight: `${visualViewportHeight}px` }
+          : undefined
+      }
     >
-      <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-background pt-[env(safe-area-inset-top,0px)] transition-colors duration-200">
+      <header className="sticky top-0 z-30 shrink-0 bg-background pt-[env(safe-area-inset-top,0px)] transition-colors duration-200">
         <div className="mx-auto flex h-14 w-full max-w-4xl items-center justify-between px-3 sm:px-6">
           <div className="flex items-center gap-2">
             <Link
@@ -933,32 +914,50 @@ export function AssistantWorkspace() {
             </button>
 
             <ThemeToggle />
+
+            <Link
+              href="/settings#profile"
+              className="relative inline-flex min-w-[44px] min-h-[44px] size-11 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-all duration-200 hover:border-border-strong hover:text-accent active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Profile and Settings"
+              title="Profile & Settings"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-4 sm:size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </Link>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto overflow-hidden">
+      <div className="relative flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto overflow-hidden">
         <div
-          className={`hidden shrink-0 overflow-hidden bg-background transition-[max-height] duration-500 sm:block ${
-            hasConversation ? "max-h-[108px]" : "max-h-[190px]"
+          className={`hidden shrink-0 bg-background transition-all duration-500 sm:block ${
+            hasConversation
+              ? "pointer-events-none max-h-0 -translate-y-2 translate-x-[35vw] scale-50 overflow-hidden opacity-0"
+              : "max-h-[190px] overflow-hidden"
           }`}
         >
           <VoiceOrb
             isListening={isListening || busy}
             className={`transition-transform duration-500 ${
-              hasConversation ? "origin-top scale-75 -my-5" : ""
+              hasConversation
+                ? "origin-center"
+                : ""
             }`}
             onToggle={() => {
               if (busy) return;
               setIsListening((prev) => !prev);
             }}
-            sublabel={
-              querying
-                ? "Processing your request…"
-                : manualSubmitting
-                  ? "Sending this record…"
-                  : "Tap to speak or type below"
-            }
           />
         </div>
 
@@ -1083,7 +1082,7 @@ export function AssistantWorkspace() {
         </div>
 
         <div
-          className={`shrink-0 border-t border-border bg-background px-3 sm:px-6 pt-2 space-y-2.5 transition-all duration-200 ${
+          className={`shrink-0 bg-background px-3 sm:px-6 pt-2 space-y-2.5 transition-all duration-200 ${
             isInputFocused || isKeyboardOpen
               ? "pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))]"
               : "pb-[calc(3.5rem+max(0.75rem,env(safe-area-inset-bottom,0.75rem)))] md:pb-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))]"
@@ -1091,13 +1090,9 @@ export function AssistantWorkspace() {
         >
           <div
             id="suggestion-pills"
-            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5"
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 sm:justify-center"
             aria-label="Query suggestions"
           >
-            <span className="text-xs font-inter text-muted shrink-0 font-medium select-none pl-1">
-              Try asking:
-            </span>
-
             {SUGGESTIONS.map((pill) => (
               <button
                 key={pill}
@@ -1130,62 +1125,12 @@ export function AssistantWorkspace() {
               autoComplete="off"
             />
 
-            <button
-              type="button"
-              onClick={handleVoiceToggle}
-              disabled={!ai || voiceProcessing}
-              aria-label={
-                voiceListening
-                  ? "Stop listening"
-                  : voiceProcessing
-                    ? "Voice is processing"
-                    : "Start voice input"
-              }
-              title={
-                !ai
-                  ? "Voice is unavailable"
-                  : voiceListening
-                    ? "Stop listening"
-                    : voiceProcessing
-                      ? "Voice is processing"
-                      : "Start voice input"
-              }
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-200 sm:hidden ${
-                voiceListening
-                  ? "bg-accent text-white shadow-[0_0_14px_rgba(254,105,4,0.45)]"
-                  : voiceProcessing
-                    ? "bg-surface-strong text-accent"
-                    : ai
-                      ? "bg-surface-strong text-muted hover:text-accent active:scale-95"
-                      : "bg-surface-strong text-faint cursor-not-allowed"
-              }`}
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center"
+              aria-label="Voxide voice control"
             >
-              {voiceProcessing ? (
-                <span
-                  className="flex items-center gap-0.5"
-                  aria-hidden="true"
-                >
-                  <span className="h-3 w-0.5 animate-pulse rounded-full bg-current" />
-                  <span className="h-5 w-0.5 animate-pulse rounded-full bg-current [animation-delay:75ms]" />
-                  <span className="h-4 w-0.5 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
-                </span>
-              ) : (
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"
-                  />
-                </svg>
-              )}
-            </button>
+              <AssistantVoiceControl />
+            </div>
 
             <button
               id="send-button"

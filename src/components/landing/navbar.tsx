@@ -11,7 +11,7 @@ const PUBLIC_NAV_LINKS = [
 ];
 
 export function Navbar() {
-  const { user, signOut, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background pt-[env(safe-area-inset-top,0px)]">
@@ -44,10 +44,8 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* Zone 3: Right — Theme, Auth/Assistant, Profile */}
+        {/* Zone 3: Right — Assistant, Theme, Profile */}
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <ThemeToggle />
-
           {/* Desktop-only Auth & CTA */}
           <div className="hidden md:flex items-center gap-2.5">
             {!isLoading && user ? (
@@ -59,13 +57,6 @@ export function Navbar() {
                   Assistant
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  className="text-xs font-medium text-muted hover:text-foreground transition-colors px-2 py-1 rounded-sm cursor-pointer"
-                >
-                  Sign Out
-                </button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
@@ -85,6 +76,8 @@ export function Navbar() {
               </div>
             )}
           </div>
+
+          <ThemeToggle />
 
           {/* Far Right: Profile Button */}
           <Link

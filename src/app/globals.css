@@ -320,6 +320,12 @@ summary::-webkit-details-marker {
   animation: orb-breathe 4s ease-in-out infinite;
 }
 
+@media (max-width: 639px) {
+  .vx-enter {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 /* Meri Signal Field */
 .signal-field-mask {
   mask-image: radial-gradient(ellipse 74% 68% at 50% 42%, black 12%, transparent 82%);

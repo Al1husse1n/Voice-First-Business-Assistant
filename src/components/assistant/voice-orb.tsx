@@ -14,11 +14,6 @@ interface VoiceOrbProps {
   onToggle?: () => void;
 
   /**
-   * Custom sublabel text under the orb. Defaults to "Tap to speak or type below".
-   */
-  sublabel?: string;
-
-  /**
    * Optional custom inner visual or Voxide canvas component.
    */
   children?: React.ReactNode;
@@ -39,7 +34,6 @@ interface VoiceOrbProps {
 export function VoiceOrb({
   isListening = false,
   onToggle,
-  sublabel = "Tap to speak or type below",
   children,
   className,
 }: VoiceOrbProps) {
@@ -146,10 +140,6 @@ export function VoiceOrb({
         </div>
       </button>
 
-      {/* Sublabel (§18 & §29) */}
-      <span className="mt-2 sm:mt-3 text-xs sm:text-sm font-inter text-muted text-center tracking-normal">
-        {active ? "Listening… speak to Meri" : sublabel}
-      </span>
     </div>
   );
 }
