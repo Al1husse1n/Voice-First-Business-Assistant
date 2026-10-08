@@ -19,26 +19,36 @@ export const metadata: Metadata = {
   description: "Meri guides your business operations with voice and clear text workflows.",
   applicationName: "Meri",
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Meri",
+  },
   icons: {
     icon: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111111",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#111111" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
   colorScheme: "dark light",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      className={`${inter.variable} ${spaceGrotesk.variable} min-h-[100dvh] antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
         <AuthProvider>{children}</AuthProvider>
         {/* Voxide voice widget. Stays mounted across navigations when a
             public key is configured. Renders nothing when the key is absent.

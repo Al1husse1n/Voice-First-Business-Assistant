@@ -7,23 +7,31 @@ interface VoiceOrbProps {
    * Optional voice listening/active state. Defaults to idle.
    */
   isListening?: boolean;
+
   /**
    * Callback when the orb is tapped/clicked.
    */
   onToggle?: () => void;
+
   /**
    * Custom sublabel text under the orb. Defaults to "Tap to speak or type below".
    */
   sublabel?: string;
+
   /**
    * Optional custom inner visual or Voxide canvas component.
    */
   children?: React.ReactNode;
+
+  /**
+   * Optional custom classes for the orb container.
+   */
+  className?: string;
 }
 
 /**
  * VoiceOrb — Modular voice interaction anchor (§13–§15, §18, §29)
- * 
+ *
  * Provides the clean, glowing breathing circle placeholder with a 3–6s subtle pulse.
  * Self-contained so teammates can easily bind real-time Voxide voice session events or
  * swap the inner canvas placeholder with custom audio wave visualizers.
@@ -33,6 +41,7 @@ export function VoiceOrb({
   onToggle,
   sublabel = "Tap to speak or type below",
   children,
+  className,
 }: VoiceOrbProps) {
   const [internalActive, setInternalActive] = useState(false);
   const active = isListening || internalActive;
@@ -48,14 +57,16 @@ export function VoiceOrb({
   return (
     <div
       id="voice-orb-container"
-      className="flex flex-col items-center justify-center py-4 sm:py-6 select-none transition-all duration-300"
+      className={`flex flex-col items-center justify-center py-4 sm:py-6 select-none transition-all duration-300 ${
+        className ?? ""
+      }`}
     >
       {/* Outer interactive button wrapping the breathing orb visual */}
       <button
         type="button"
         onClick={handleClick}
         aria-label={active ? "Stop speaking" : "Tap to speak"}
-        className="relative group focus:outline-none cursor-pointer rounded-full"
+        className="relative group focus:outline-none cursor-pointer rounded-full active:scale-95 transition-transform duration-200"
       >
         {/* Soft Ambient Radial Glow - Persistent warm orange aura (§13–§15) */}
         <div
@@ -96,12 +107,17 @@ export function VoiceOrb({
                   backgroundColor: active
                     ? "var(--orb-inner-bg-active)"
                     : "var(--orb-inner-bg)",
-                  borderColor: active ? "var(--accent)" : "var(--orb-inner-border)",
+                  borderColor: active
+                    ? "var(--accent)"
+                    : "var(--orb-inner-border)",
                 }}
               >
                 {active ? (
                   /* Active audio indicator */
-                  <div className="flex items-center gap-1 h-5" aria-hidden="true">
+                  <div
+                    className="flex items-center gap-1 h-5"
+                    aria-hidden="true"
+                  >
                     <span className="w-1 bg-[#FE6904] rounded-full h-3 animate-pulse" />
                     <span className="w-1 bg-[#FE6904] rounded-full h-5 animate-pulse delay-75" />
                     <span className="w-1 bg-[#FE6904] rounded-full h-4 animate-pulse delay-150" />
@@ -110,7 +126,7 @@ export function VoiceOrb({
                 ) : (
                   /* Idle microphone glyph */
                   <svg
-                    className="w-6 h-6 text-muted dark:text-muted transition-colors duration-200 group-hover:text-[#FE6904]"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-muted dark:text-muted transition-colors duration-200 group-hover:text-[#FE6904]"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -131,7 +147,7 @@ export function VoiceOrb({
       </button>
 
       {/* Sublabel (§18 & §29) */}
-      <span className="mt-3 text-xs sm:text-sm font-inter text-muted text-center tracking-normal">
+      <span className="mt-2 sm:mt-3 text-xs sm:text-sm font-inter text-muted text-center tracking-normal">
         {active ? "Listening… speak to Meri" : sublabel}
       </span>
     </div>
