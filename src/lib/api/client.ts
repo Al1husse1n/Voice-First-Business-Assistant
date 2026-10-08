@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   ApiFailure,
   ApiResult,
@@ -14,17 +15,20 @@ import type {
  * Retrieves the current Supabase session JWT in the browser and formats
  * the Authorization header. Prepared for authenticated requests to FastAPI.
  */
-export async function getAuthHeaders(): Promise<Record<string, string>> {
-  if (typeof window === "undefined") {
+export async function getAuthHeaders(
+  client?: SupabaseClient,
+): Promise<Record<string, string>> {
+  if (typeof window === "undefined" && !client) {
     return {};
   }
   try {
-    const supabase = createClient();
+    const supabase = client ?? createClient();
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      return { Authorization: `Bearer ${session.access_token}` };
+    const token = session?.access_token?.trim();
+    if (token && token !== "undefined" && token !== "null") {
+      return { Authorization: `Bearer ${token}` };
     }
   } catch {
     // Graceful fallback when unconfigured or client unavailable
@@ -38,10 +42,14 @@ const CONNECTIVITY_MESSAGE =
 const CONFIG_MESSAGE =
   "Backend URL is not configured. Set NEXT_PUBLIC_API_URL and restart the app.";
 
+const AUTH_REQUIRED_MESSAGE =
+  "Authentication required. Please sign in to continue.";
+
 type ErrorPayload = {
   success?: boolean;
   status?: string;
   message?: string;
+  detail?: string;
   missing_fields?: unknown;
   error?: {
     code?: string;
@@ -62,7 +70,8 @@ function failureFromPayload(
   httpStatus: number,
 ): ApiFailure {
   const missing = asStringArray(payload?.missing_fields);
-  const code = payload?.error?.code;
+  const code =
+    payload?.error?.code ?? (httpStatus === 401 ? "UNAUTHORIZED" : undefined);
   const isClarification =
     payload?.status === "needs_clarification" ||
     code === "NEEDS_CLARIFICATION" ||
@@ -71,6 +80,7 @@ function failureFromPayload(
   const message =
     payload?.message ||
     payload?.error?.message ||
+    payload?.detail ||
     "The business service could not complete this request.";
 
   return {
@@ -95,23 +105,85 @@ async function readJson(response: Response): Promise<unknown | null> {
   }
 }
 
+interface RequestOptions {
+  requiresAuth?: boolean;
+}
+
+function extractHeader(headers: HeadersInit | undefined, name: string): string | null {
+  if (!headers) return null;
+  if (typeof Headers !== "undefined" && headers instanceof Headers) {
+    return headers.get(name);
+  }
+  if (Array.isArray(headers)) {
+    const entry = headers.find(([k]) => k.toLowerCase() === name.toLowerCase());
+    return entry ? entry[1] : null;
+  }
+  const rec = headers as Record<string, string>;
+  for (const k of Object.keys(rec)) {
+    if (k.toLowerCase() === name.toLowerCase()) {
+      return rec[k];
+    }
+  }
+  return null;
+}
+
 async function request(
   path: string,
   init: RequestInit,
+  options: RequestOptions = {},
 ): Promise<{ response: Response; body: unknown | null } | ApiFailure> {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) {
     return { ok: false, kind: "config", message: CONFIG_MESSAGE };
   }
 
+  let authHeaders: Record<string, string> = {};
+  if (options.requiresAuth) {
+    const explicitAuth = extractHeader(init.headers, "Authorization");
+    const validExplicitAuth = Boolean(
+      explicitAuth &&
+        explicitAuth.trim().length > 0 &&
+        explicitAuth !== "Bearer undefined" &&
+        explicitAuth !== "Bearer null",
+    );
+
+    if (validExplicitAuth) {
+      authHeaders = {};
+    } else {
+      authHeaders = await getAuthHeaders();
+      const tokenHeader = authHeaders.Authorization;
+      if (
+        !tokenHeader ||
+        !tokenHeader.trim() ||
+        tokenHeader === "Bearer undefined" ||
+        tokenHeader === "Bearer null"
+      ) {
+        return {
+          ok: false,
+          kind: "error",
+          message: AUTH_REQUIRED_MESSAGE,
+          status: 401,
+          code: "UNAUTHORIZED",
+        };
+      }
+    }
+  }
+
   try {
+    const requestHeaders = new Headers(init.headers);
+    if (!requestHeaders.has("Accept")) {
+      requestHeaders.set("Accept", "application/json");
+    }
+    if (init.body && !requestHeaders.has("Content-Type")) {
+      requestHeaders.set("Content-Type", "application/json");
+    }
+    if (authHeaders.Authorization && !requestHeaders.has("Authorization")) {
+      requestHeaders.set("Authorization", authHeaders.Authorization);
+    }
+
     const response = await fetch(`${baseUrl}${path}`, {
       ...init,
-      headers: {
-        Accept: "application/json",
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
-        ...init.headers,
-      },
+      headers: requestHeaders,
     });
     const body = await readJson(response);
     return { response, body };
@@ -149,11 +221,17 @@ export async function healthCheck(): Promise<ApiResult<HealthSuccess>> {
 
 export async function createEvent(
   payload: CreateEventRequest,
+  initHeaders?: HeadersInit,
 ): Promise<ApiResult<CreateEventSuccess>> {
-  const result = await request("/api/v1/events", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const result = await request(
+    "/api/v1/events",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: initHeaders,
+    },
+    { requiresAuth: true },
+  );
   if ("ok" in result) {
     return result;
   }
@@ -190,11 +268,17 @@ export async function createEvent(
 
 export async function queryBusiness(
   payload: QueryRequest,
+  initHeaders?: HeadersInit,
 ): Promise<ApiResult<QuerySuccess>> {
-  const result = await request("/api/v1/query", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const result = await request(
+    "/api/v1/query",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: initHeaders,
+    },
+    { requiresAuth: true },
+  );
   if ("ok" in result) {
     return result;
   }
